@@ -1,13 +1,13 @@
 # Build outputs
-music_server
-auth_server
-catalog_server
-profile_server
-media_server
-video_server
-event_worker
-migrator
-cmd/monolith/music-server-v2
+/music_server
+/auth_server
+/catalog_server
+/profile_server
+/media_server
+/video_server
+/event_worker
+/migrator
+/cmd/monolith/music-server-v2
 
 # Runtime / logs
 *.log
