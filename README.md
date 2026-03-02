@@ -79,7 +79,7 @@ Docker 模式（推荐）：
 说明：
 - 脚本会幂等 upsert 到 `music_users.music_files`（音频 `is_audio=1`，视频 `is_audio=0`）。
 - 会自动 upsert `music_users.artists`（基于音频 artist 字段）和 `music_media.media_lyrics_map`。
-- 默认尝试使用 `ffprobe` 读取时长与标签；无 `ffprobe` 时会回退为文件名信息，`duration_sec=0`。
+- Docker 镜像已内置 `ffmpeg/ffprobe`，默认可读取时长与标签；本地非 Docker 模式无 `ffprobe` 时会回退为文件名信息，`duration_sec=0`。
 
 ### 3. Docker 常用命令
 
