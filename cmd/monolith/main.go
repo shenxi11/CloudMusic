@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	adminHandler "music-platform/internal/admin/handler"
 	artistHandler "music-platform/internal/artist/handler"
 	artistRepo "music-platform/internal/artist/repository"
 	artistService "music-platform/internal/artist/service"
@@ -125,6 +126,7 @@ func main() {
 	videoH := videoHandler.NewVideoHandler(videoSvc, baseURL)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
+	adminH := adminHandler.NewAdminHandler(cfg, db)
 
 	// 9. 创建路由
 	mux := http.NewServeMux()
@@ -132,6 +134,7 @@ func main() {
 	// 用户相关路由
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
+	mux.HandleFunc("/users/ping", userH.Ping)
 	mux.HandleFunc("/users/add_music", userH.AddMusic)
 
 	// 音乐相关路由
@@ -164,6 +167,17 @@ func main() {
 	mux.HandleFunc("/uploads/", mediaH.ServeFile)
 	mux.HandleFunc("/files/", mediaH.Download)
 	mux.HandleFunc("/download", mediaH.DownloadQuery) // 旧版兼容接口（处理 ?path= 参数）
+
+	// 管理后台（仅管理员）
+	mux.HandleFunc("/admin", adminH.AdminPage)
+	mux.HandleFunc("/admin/", adminH.AdminPage)
+	mux.HandleFunc("/admin/api/login", adminH.Login)
+	mux.HandleFunc("/admin/api/logout", adminH.Logout)
+	mux.HandleFunc("/admin/api/session", adminH.Session)
+	mux.HandleFunc("/admin/api/users", adminH.ListUsers)
+	mux.HandleFunc("/admin/api/media", adminH.ListMedia)
+	mux.HandleFunc("/admin/api/media/delete", adminH.BatchDeleteMedia)
+	mux.HandleFunc("/admin/api/upload/song", adminH.UploadSong)
 
 	// 视频文件服务路由
 	mux.HandleFunc("/video/", func(w http.ResponseWriter, r *http.Request) {

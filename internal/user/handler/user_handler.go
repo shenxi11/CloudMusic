@@ -105,3 +105,32 @@ func (h *UserHandler) AddMusic(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, map[string]bool{"success": true})
 }
+
+// Ping 用户在线心跳
+func (h *UserHandler) Ping(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 GET/POST")
+		return
+	}
+
+	var req model.UserPingRequest
+	if r.Method == http.MethodPost {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			response.BadRequest(w, "请求参数错误")
+			return
+		}
+	} else {
+		req.Account = r.URL.Query().Get("account")
+		req.Username = r.URL.Query().Get("username")
+	}
+
+	if err := h.userService.TouchOnline(r.Context(), &req); err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.Success(w, map[string]bool{"success": true})
+}

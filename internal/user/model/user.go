@@ -44,3 +44,9 @@ type AddMusicRequest struct {
 	Username  string `json:"username"`
 	MusicPath string `json:"music_path"`
 }
+
+// UserPingRequest 用户在线心跳请求
+type UserPingRequest struct {
+	Account  string `json:"account"`
+	Username string `json:"username"`
+}

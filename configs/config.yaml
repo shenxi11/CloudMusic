@@ -44,3 +44,8 @@ schemas:
   profile: "music_profile"
   catalog: "music_users"
   media: "music_media"
+
+admin:
+  username: "admin"
+  password: "admin123456"
+  session_ttl_minutes: 1440

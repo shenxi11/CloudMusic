@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CloudMusic 管理后台</title>
+  <style>
+    :root {
+      --bg: #f2f5f1;
+      --panel: #ffffff;
+      --ink: #1a2b1f;
+      --sub: #4c6252;
+      --line: #dbe6dc;
+      --accent: #1f7a4f;
+      --accent-2: #145a39;
+      --warn: #9c2c2c;
+      --ok: #1f7a4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+      background: radial-gradient(1200px 600px at 10% -20%, #dceedd, transparent), radial-gradient(1000px 500px at 100% 0%, #f4ead8, transparent), var(--bg);
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 24px auto 40px;
+      padding: 0 16px;
+    }
+    .hero {
+      background: linear-gradient(135deg, #133d2b, #1f7a4f);
+      color: #f7fff9;
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 12px 30px rgba(19, 61, 43, 0.22);
+    }
+    .hero h1 { margin: 0; font-size: 26px; letter-spacing: 0.5px; }
+    .hero p { margin: 6px 0 0; color: #dbf2e2; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .card {
+      grid-column: span 12;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 8px 20px rgba(9, 30, 18, 0.05);
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      color: #0f3a26;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .field { grid-column: span 12; }
+    .field.small { grid-column: span 4; }
+    .field.mid { grid-column: span 6; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--sub);
+      font-size: 13px;
+    }
+    input, select, button {
+      width: 100%;
+      border: 1px solid #c7d8ca;
+      border-radius: 9px;
+      padding: 10px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--ink);
+    }
+    input:focus, select:focus { outline: 2px solid #b8dfc8; border-color: var(--accent); }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #f4fff7;
+      font-weight: 600;
+      transition: all .18s ease;
+    }
+    button:hover { background: var(--accent-2); border-color: var(--accent-2); }
+    button.ghost {
+      background: #fff;
+      color: var(--ink);
+      border-color: #b9cbbc;
+    }
+    button.warn {
+      background: var(--warn);
+      border-color: var(--warn);
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .actions button { width: auto; min-width: 110px; }
+    .status {
+      font-size: 13px;
+      margin-top: 8px;
+      color: #234c34;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .pill.ok { color: #0f6b3f; background: #def8ea; border-color: #bceacb; }
+    .pill.off { color: #6a6d72; background: #eef0f2; border-color: #dde2e6; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    th, td {
+      border-bottom: 1px solid #edf2ee;
+      text-align: left;
+      padding: 8px 6px;
+      vertical-align: middle;
+      word-break: break-all;
+    }
+    th { color: #43604e; font-size: 12px; }
+    .mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
+    .top-right {
+      float: right;
+      color: #ddf4e6;
+      font-size: 12px;
+      display: none;
+    }
+    @media (min-width: 980px) {
+      .half { grid-column: span 6; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <span id="currentAdmin" class="top-right"></span>
+      <h1>CloudMusic 管理后台</h1>
+      <p>管理员可执行资源上传、批量删除、用户在线监控。</p>
+    </div>
+
+    <div class="grid">
+      <section id="loginPanel" class="card half">
+        <h2>管理员登录</h2>
+        <div class="row">
+          <div class="field mid">
+            <label>用户名</label>
+            <input id="loginUser" placeholder="admin" autocomplete="username" />
+          </div>
+          <div class="field mid">
+            <label>密码</label>
+            <input id="loginPass" type="password" placeholder="••••••" autocomplete="current-password" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnLogin">登录</button>
+        </div>
+        <div id="loginStatus" class="status"></div>
+      </section>
+
+      <section id="uploadPanel" class="card" style="display:none;">
+        <h2>上传歌曲（可选歌词/封面）</h2>
+        <div class="row">
+          <div class="field small">
+            <label>歌曲文件（必填）</label>
+            <input id="songFile" type="file" accept=".mp3,.flac,.wav,.ogg,.m4a,.aac" />
+          </div>
+          <div class="field small">
+            <label>歌词文件（可选）</label>
+            <input id="lrcFile" type="file" accept=".lrc,.txt" />
+          </div>
+          <div class="field small">
+            <label>封面图片（可选）</label>
+            <input id="coverFile" type="file" accept="image/*" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field small">
+            <label>标题（可选）</label>
+            <input id="songTitle" placeholder="为空则自动识别" />
+          </div>
+          <div class="field small">
+            <label>歌手（可选）</label>
+            <input id="songArtist" placeholder="为空则自动识别" />
+          </div>
+          <div class="field small">
+            <label>专辑（可选）</label>
+            <input id="songAlbum" placeholder="为空则自动识别" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnUploadSong">上传并入库</button>
+        </div>
+        <div id="uploadStatus" class="status"></div>
+      </section>
+
+      <section id="mediaPanel" class="card" style="display:none;">
+        <h2>资源管理（音频/视频批量操作）</h2>
+        <div class="row">
+          <div class="field small">
+            <label>类型</label>
+            <select id="mediaType">
+              <option value="audio">音频</option>
+              <option value="video">视频</option>
+              <option value="all">全部</option>
+            </select>
+          </div>
+          <div class="field mid">
+            <label>关键词</label>
+            <input id="mediaKeyword" placeholder="按 path/title/artist/album 检索" />
+          </div>
+          <div class="field small">
+            <label>条数</label>
+            <input id="mediaLimit" type="number" value="200" min="1" max="1000" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnLoadMedia">刷新列表</button>
+          <button id="btnSelectAll" class="ghost">全选</button>
+          <button id="btnDeleteDb" class="warn">批量删库记录</button>
+          <button id="btnDeleteDbFiles" class="warn">批量删库+文件</button>
+        </div>
+        <div id="mediaStatus" class="status"></div>
+        <div style="overflow:auto; max-height: 460px; margin-top:8px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px;"><input id="chkAll" type="checkbox" /></th>
+                <th>path</th>
+                <th>title</th>
+                <th>artist</th>
+                <th>type</th>
+                <th>size</th>
+                <th>updated_at</th>
+              </tr>
+            </thead>
+            <tbody id="mediaTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="usersPanel" class="card" style="display:none;">
+        <h2>客户端用户与在线状态</h2>
+        <div class="actions">
+          <button id="btnLoadUsers">刷新用户状态</button>
+          <button id="btnLogout" class="ghost">退出管理员</button>
+        </div>
+        <div id="usersStatus" class="status"></div>
+        <div style="overflow:auto; max-height: 360px; margin-top:8px;">
+          <table>
+            <thead>
+              <tr>
+                <th>account</th>
+                <th>username</th>
+                <th>online</th>
+                <th>last_seen</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const loginPanel = document.getElementById('loginPanel');
+    const uploadPanel = document.getElementById('uploadPanel');
+    const mediaPanel = document.getElementById('mediaPanel');
+    const usersPanel = document.getElementById('usersPanel');
+    const currentAdmin = document.getElementById('currentAdmin');
+
+    const mediaTableBody = document.getElementById('mediaTableBody');
+    const usersTableBody = document.getElementById('usersTableBody');
+
+    let mediaItems = [];
+
+    function setStatus(id, msg, isErr = false) {
+      const el = document.getElementById(id);
+      el.style.color = isErr ? '#9c2c2c' : '#234c34';
+      el.textContent = msg;
+    }
+
+    function bytesLabel(v) {
+      if (!v || v < 1024) return `${v || 0} B`;
+      const units = ['KB', 'MB', 'GB'];
+      let n = v / 1024;
+      let i = 0;
+      while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+      return `${n.toFixed(1)} ${units[i]}`;
+    }
+
+    function tsLabel(ts) {
+      if (!ts) return '-';
+      return new Date(ts * 1000).toLocaleString();
+    }
+
+    async function api(path, options = {}) {
+      const resp = await fetch(path, {
+        credentials: 'include',
+        ...options,
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (_) {}
+      if (!resp.ok) {
+        const msg = data?.message || `HTTP ${resp.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function showAuthed(username) {
+      loginPanel.style.display = 'none';
+      uploadPanel.style.display = '';
+      mediaPanel.style.display = '';
+      usersPanel.style.display = '';
+      currentAdmin.style.display = 'inline-block';
+      currentAdmin.textContent = `Admin: ${username}`;
+    }
+
+    function showLoggedOut() {
+      loginPanel.style.display = '';
+      uploadPanel.style.display = 'none';
+      mediaPanel.style.display = 'none';
+      usersPanel.style.display = 'none';
+      currentAdmin.style.display = 'none';
+      currentAdmin.textContent = '';
+    }
+
+    async function checkSession() {
+      try {
+        const ret = await api('/admin/api/session');
+        showAuthed(ret?.data?.username || 'admin');
+        await Promise.all([loadMedia(), loadUsers()]);
+      } catch (_) {
+        showLoggedOut();
+      }
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('loginUser').value.trim();
+      const password = document.getElementById('loginPass').value;
+      if (!username || !password) {
+        setStatus('loginStatus', '请输入管理员用户名和密码', true);
+        return;
+      }
+      try {
+        const ret = await api('/admin/api/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username, password}),
+        });
+        setStatus('loginStatus', '登录成功');
+        showAuthed(ret?.data?.username || username);
+        await Promise.all([loadMedia(), loadUsers()]);
+      } catch (e) {
+        setStatus('loginStatus', `登录失败: ${e.message}`, true);
+      }
+    }
+
+    async function doLogout() {
+      try {
+        await api('/admin/api/logout', { method: 'POST' });
+      } catch (_) {}
+      showLoggedOut();
+      setStatus('usersStatus', '已退出管理员账号');
+    }
+
+    async function loadMedia() {
+      const type = document.getElementById('mediaType').value;
+      const keyword = document.getElementById('mediaKeyword').value.trim();
+      const limit = document.getElementById('mediaLimit').value || '200';
+
+      const params = new URLSearchParams();
+      if (type && type !== 'all') params.set('type', type);
+      if (keyword) params.set('keyword', keyword);
+      params.set('limit', limit);
+
+      try {
+        const ret = await api(`/admin/api/media?${params.toString()}`);
+        mediaItems = ret?.data || [];
+        renderMediaTable();
+        setStatus('mediaStatus', `加载完成：${mediaItems.length} 条`);
+      } catch (e) {
+        setStatus('mediaStatus', `加载失败: ${e.message}`, true);
+      }
+    }
+
+    function renderMediaTable() {
+      mediaTableBody.innerHTML = mediaItems.map((m, i) => `
+        <tr>
+          <td><input type="checkbox" class="mediaChk" data-index="${i}" /></td>
+          <td class="mono">${m.path || ''}</td>
+          <td>${m.title || ''}</td>
+          <td>${m.artist || ''}</td>
+          <td>${m.is_audio ? 'audio' : 'video'}</td>
+          <td>${bytesLabel(m.size_bytes)}</td>
+          <td>${m.updated_at || ''}</td>
+        </tr>
+      `).join('');
+      document.getElementById('chkAll').checked = false;
+    }
+
+    function selectedMediaPaths() {
+      const checks = Array.from(document.querySelectorAll('.mediaChk:checked'));
+      const paths = [];
+      checks.forEach(c => {
+        const idx = Number(c.dataset.index);
+        if (Number.isInteger(idx) && mediaItems[idx]?.path) paths.push(mediaItems[idx].path);
+      });
+      return paths;
+    }
+
+    async function batchDelete(deleteFiles) {
+      const paths = selectedMediaPaths();
+      if (!paths.length) {
+        setStatus('mediaStatus', '请先勾选要操作的资源', true);
+        return;
+      }
+      if (!confirm(`确认删除 ${paths.length} 条资源${deleteFiles ? '（同时删除物理文件）' : ''}？`)) {
+        return;
+      }
+
+      try {
+        const ret = await api('/admin/api/media/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ paths, delete_files: deleteFiles }),
+        });
+        const data = ret?.data || {};
+        const warn = data.warnings?.length ? `\n警告:\n- ${data.warnings.join('\n- ')}` : '';
+        setStatus('mediaStatus', `删除完成: db=${data.deleted_rows || 0}, files=${(data.deleted_files || []).length}${warn}`);
+        await loadMedia();
+      } catch (e) {
+        setStatus('mediaStatus', `删除失败: ${e.message}`, true);
+      }
+    }
+
+    async function uploadSong() {
+      const song = document.getElementById('songFile').files[0];
+      const lrc = document.getElementById('lrcFile').files[0];
+      const cover = document.getElementById('coverFile').files[0];
+      if (!song) {
+        setStatus('uploadStatus', '请选择歌曲文件', true);
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('song', song);
+      if (lrc) fd.append('lrc', lrc);
+      if (cover) fd.append('cover', cover);
+      fd.append('title', document.getElementById('songTitle').value.trim());
+      fd.append('artist', document.getElementById('songArtist').value.trim());
+      fd.append('album', document.getElementById('songAlbum').value.trim());
+
+      try {
+        const ret = await api('/admin/api/upload/song', {
+          method: 'POST',
+          body: fd,
+        });
+        const d = ret?.data || {};
+        setStatus('uploadStatus', `上传成功\npath=${d.path || ''}\ntitle=${d.title || ''}\nartist=${d.artist || ''}`);
+        await loadMedia();
+      } catch (e) {
+        setStatus('uploadStatus', `上传失败: ${e.message}`, true);
+      }
+    }
+
+    async function loadUsers() {
+      try {
+        const ret = await api('/admin/api/users');
+        const users = ret?.data || [];
+        usersTableBody.innerHTML = users.map(u => `
+          <tr>
+            <td class="mono">${u.account || ''}</td>
+            <td>${u.username || ''}</td>
+            <td>${u.online ? '<span class="pill ok">在线</span>' : '<span class="pill off">离线</span>'}</td>
+            <td>${tsLabel(u.last_seen_at)}</td>
+          </tr>
+        `).join('');
+        setStatus('usersStatus', `用户总数: ${users.length}`);
+      } catch (e) {
+        setStatus('usersStatus', `加载用户失败: ${e.message}`, true);
+      }
+    }
+
+    document.getElementById('btnLogin').addEventListener('click', doLogin);
+    document.getElementById('btnUploadSong').addEventListener('click', uploadSong);
+    document.getElementById('btnLoadMedia').addEventListener('click', loadMedia);
+    document.getElementById('btnLoadUsers').addEventListener('click', loadUsers);
+    document.getElementById('btnDeleteDb').addEventListener('click', () => batchDelete(false));
+    document.getElementById('btnDeleteDbFiles').addEventListener('click', () => batchDelete(true));
+    document.getElementById('btnLogout').addEventListener('click', doLogout);
+    document.getElementById('btnSelectAll').addEventListener('click', () => {
+      document.querySelectorAll('.mediaChk').forEach(c => c.checked = true);
+      document.getElementById('chkAll').checked = true;
+    });
+    document.getElementById('chkAll').addEventListener('change', (e) => {
+      document.querySelectorAll('.mediaChk').forEach(c => c.checked = e.target.checked);
+    });
+
+    checkSession();
+  </script>
+</body>
+</html>

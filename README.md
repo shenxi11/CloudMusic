@@ -34,6 +34,8 @@ cd microservice-deploy
 #   MYSQL_ROOT_PASSWORD=你的数据库密码
 #   SERVER_PUBLIC_HOST=你的服务器IP或域名
 #   SERVER_PUBLIC_BASE_URL=http://你的服务器IP或域名:8080
+#   ADMIN_USERNAME=后台管理员用户名
+#   ADMIN_PASSWORD=后台管理员密码
 ./start_docker.sh
 
 # 4) 查看状态和日志
@@ -48,6 +50,10 @@ curl http://127.0.0.1:8080/videos
 # 6) 停止
 ./stop_docker.sh
 ```
+
+管理后台入口（默认）：
+- 地址：`http://127.0.0.1:8080/admin`
+- 默认管理员：`admin / admin123456`（建议首次启动后在 `.env.docker` 或 `configs/config.yaml` 修改）
 
 说明：
 - Docker 模式会自动拉起 `MySQL + Redis + Gateway + 各微服务`。
@@ -80,6 +86,12 @@ Docker 模式（推荐）：
 - 脚本会幂等 upsert 到 `music_users.music_files`（音频 `is_audio=1`，视频 `is_audio=0`）。
 - 会自动 upsert `music_users.artists`（基于音频 artist 字段）和 `music_media.media_lyrics_map`。
 - Docker 镜像已内置 `ffmpeg/ffprobe`，默认可读取时长与标签；本地非 Docker 模式无 `ffprobe` 时会回退为文件名信息，`duration_sec=0`。
+### 2.5 管理后台功能（新增）
+
+- 管理员登录：`/admin` 登录后进入后台页面
+- 音频/视频资源：按关键词筛选，支持批量删库、批量删库+删除物理文件
+- 上传歌曲：支持上传歌曲+歌词+封面；未上传封面时自动用 `ffmpeg` 提取
+- 用户在线状态：查看全部客户端用户，并展示在线/离线与最后在线时间
 
 ### 3. Docker 常用命令
 
@@ -196,6 +208,12 @@ schemas:
   profile: "music_profile"
   catalog: "music_users"
   media: "music_media"
+
+# 管理后台账号
+admin:
+  username: "admin"
+  password: "请改成强密码"
+  session_ttl_minutes: 1440
 ```
 
 ### 数据迁移命令

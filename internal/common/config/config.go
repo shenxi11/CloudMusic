@@ -76,6 +76,13 @@ type SchemaConfig struct {
 	Media   string `yaml:"media"`
 }
 
+// AdminConfig 管理后台配置
+type AdminConfig struct {
+	Username          string `yaml:"username"`
+	Password          string `yaml:"password"`
+	SessionTTLMinutes int    `yaml:"session_ttl_minutes"`
+}
+
 // Config 总配置
 type Config struct {
 	Server   ServerConfig   `yaml:"server"`
@@ -83,6 +90,7 @@ type Config struct {
 	Redis    RedisConfig    `yaml:"redis"`
 	Event    EventConfig    `yaml:"event"`
 	Schemas  SchemaConfig   `yaml:"schemas"`
+	Admin    AdminConfig    `yaml:"admin"`
 }
 
 var globalConfig *Config

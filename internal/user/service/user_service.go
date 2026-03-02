@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"music-platform/internal/common/cache"
 	"music-platform/internal/user/model"
@@ -17,6 +19,7 @@ type UserService interface {
 	Register(ctx context.Context, req *model.RegisterRequest) error
 	Login(ctx context.Context, req *model.LoginRequest) (*model.LoginResponse, error)
 	AddMusic(ctx context.Context, req *model.AddMusicRequest) error
+	TouchOnline(ctx context.Context, req *model.UserPingRequest) error
 }
 
 type userService struct {
@@ -119,6 +122,7 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 	response.Success = "true"
 	response.SuccessBool = true
 	response.Username = user.Username
+	s.markUserOnline(user.Account)
 
 	// 获取用户收藏的音乐
 	musicList, err := s.userMusicRepo.FindByUsername(ctx, user.Username)
@@ -132,6 +136,27 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 	// cache.Set(cacheKey, response, cache.TTLShort)
 
 	return response, nil
+}
+
+// TouchOnline 标记用户在线（用于客户端心跳）
+func (s *userService) TouchOnline(ctx context.Context, req *model.UserPingRequest) error {
+	account := strings.TrimSpace(req.Account)
+	if account == "" {
+		username := strings.TrimSpace(req.Username)
+		if username == "" {
+			return errors.New("account 或 username 至少提供一个")
+		}
+		user, err := s.userRepo.FindByUsername(ctx, username)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return errors.New("用户不存在")
+			}
+			return fmt.Errorf("查询用户失败: %w", err)
+		}
+		account = user.Account
+	}
+	s.markUserOnline(account)
+	return nil
 }
 
 // AddMusic 添加音乐到用户收藏
@@ -164,4 +189,14 @@ func (s *userService) AddMusic(ctx context.Context, req *model.AddMusicRequest) 
 	}
 
 	return nil
+}
+
+func (s *userService) markUserOnline(account string) {
+	account = strings.TrimSpace(account)
+	if account == "" {
+		return
+	}
+	key := cache.PrefixUser + "online:account:" + account
+	ttl := 10 * time.Minute
+	_ = cache.Set(key, strconv.FormatInt(time.Now().Unix(), 10), ttl)
 }
