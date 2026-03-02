@@ -107,6 +107,7 @@ cd microservice-deploy
 说明：
 - `./scripts/docker.sh up` 会自动生成 `configs/config.docker.generated.yaml` 并用于所有容器。
 - 网关默认地址：`http://127.0.0.1:8080`（可在 `.env.docker` 里改 `GATEWAY_PORT`）。
+- 同机多套环境请修改 `.env.docker` 的 `COMPOSE_PROJECT_NAME`，避免复用旧 volume（尤其是 MySQL 账号密码）。
 - 媒体与视频目录默认挂载仓库内 `./.data/*`；如果你有已有资源，可在 `.env.docker` 修改 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR`。
 - 空数据库首启会自动建核心表（`users/music_files/artists/user_path`）；首次登录请先调用注册接口创建账号。
 

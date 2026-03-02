@@ -51,14 +51,28 @@ ensure_data_dirs() {
   )
 }
 
+resolve_project_name() {
+  load_env_file
+  local fallback
+  fallback="$(basename "$ROOT_DIR")"
+  if [[ -n "${COMPOSE_PROJECT_NAME:-}" ]]; then
+    printf '%s' "$COMPOSE_PROJECT_NAME"
+    return
+  fi
+  printf '%s' "$fallback"
+}
+
 compose() {
+  local project_name
+  project_name="$(resolve_project_name)"
+
   if docker compose version >/dev/null 2>&1; then
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    docker compose -p "$project_name" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
     return
   fi
 
   if command -v docker-compose >/dev/null 2>&1; then
-    docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+    docker-compose -p "$project_name" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
     return
   fi
 
