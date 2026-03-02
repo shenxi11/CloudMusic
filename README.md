@@ -17,101 +17,45 @@ microservice-deploy/
 
 ## 🚀 快速开始
 
-### 1. 首次部署
-
-```bash
-# 编译应用
-./build.sh
-
-# 执行数据库迁移（可重复执行）
-./migrate.sh
-
-# 启动服务
-./start.sh
-```
-
-### 2. 日常管理
-
-```bash
-# 启动服务
-./start.sh
-
-# 停止服务
-./stop.sh
-
-# 重启服务
-./stop.sh && ./start.sh
-
-# 查看日志
-tail -f server.log
-
-# 查看状态
-ps aux | grep music_server
-```
-
-### 2.1 静态资源分离模式（推荐生产）
-
-```bash
-# 启动：Nginx(8080) + Go后端(127.0.0.1:18080)
-./start_split.sh
-
-# 停止
-./stop_split.sh
-```
-
-详细说明见 `STATIC_SPLIT_DEPLOY.md`。
-微服务演进路线见 `MICROSERVICE_ROADMAP.md`。
-
-### 2.2 API 文档（OpenAPI）
-
-```bash
-# 网关 API OpenAPI 3.0 文档
-docs/openapi.yaml
-
-# 启动 Swagger UI 预览（默认 http://127.0.0.1:18090/swagger-ui.html）
-./scripts/openapi_preview.sh start
-
-# 查看状态 / 停止
-./scripts/openapi_preview.sh status
-./scripts/openapi_preview.sh stop
-```
-
-可直接导入 Swagger UI / Redoc。当前文档覆盖网关可访问接口（含兼容接口）。
-最近一次实测报告见 `API_DOC_TEST_REPORT.md`。
-
-### 2.3 一键 Docker 部署（推荐迁移/复现环境）
+### 1. 一键 Docker 部署（主流程，推荐）
 
 ```bash
 # 1) 拉代码
 git clone <your-repo-url>
 cd microservice-deploy
 
-# 2) 启动整套服务（MySQL + Redis + 网关 + 全部微服务）
-# 首次会自动生成 .env.docker，并自动创建 ./.data/uploads|video|uploads_hls 目录
-# 如需自定义静态资源目录/数据库密码，编辑 .env.docker：
-#   HOST_UPLOAD_DIR / HOST_VIDEO_DIR / HOST_HLS_DIR / MYSQL_ROOT_PASSWORD
-./scripts/docker.sh up
-# 或
+# 2) 首次启动（会自动生成 .env.docker 和 configs/config.docker.generated.yaml）
 ./start_docker.sh
 
-# 3) 查看状态/日志
+# 3) 按需修改 .env.docker 后再次启动
+# 必改项（至少检查）：
+#   HOST_UPLOAD_DIR=/你的音频目录
+#   HOST_VIDEO_DIR=/你的视频目录
+#   MYSQL_ROOT_PASSWORD=你的数据库密码
+#   SERVER_PUBLIC_HOST=你的服务器IP或域名
+#   SERVER_PUBLIC_BASE_URL=http://你的服务器IP或域名:8080
+./start_docker.sh
+
+# 4) 查看状态和日志
 ./scripts/docker.sh ps
 ./scripts/docker.sh logs gateway
 
-# 4) 停止
-./scripts/docker.sh down
-# 或
+# 5) 健康检查
+curl http://127.0.0.1:8080/users/health
+curl http://127.0.0.1:8080/files
+curl http://127.0.0.1:8080/videos
+
+# 6) 停止
 ./stop_docker.sh
 ```
 
 说明：
-- `./scripts/docker.sh up` 会自动生成 `configs/config.docker.generated.yaml` 并用于所有容器。
-- 网关默认地址：`http://127.0.0.1:8080`（可在 `.env.docker` 里改 `GATEWAY_PORT`）。
-- 同机多套环境请修改 `.env.docker` 的 `COMPOSE_PROJECT_NAME`，避免复用旧 volume（尤其是 MySQL 账号密码）。
-- 媒体与视频目录默认挂载仓库内 `./.data/*`；如果你有已有资源，可在 `.env.docker` 修改 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR`。
-- 空数据库首启会自动建核心表（`users/music_files/artists/user_path`）；首次登录请先调用注册接口创建账号。
+- Docker 模式会自动拉起 `MySQL + Redis + Gateway + 各微服务`。
+- 静态资源目录通过 `.env.docker` 的 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR` 配置，不需要改代码。
+- 如果数据库是空库，只会自动建表，不会自动生成业务数据；需自行导入数据或执行你的媒体入库脚本。
+- 同机部署多套环境时，修改 `.env.docker` 的 `COMPOSE_PROJECT_NAME`，避免复用旧容器和 volume。
 
-### 2.4 静态资源目录入库（音频/视频元数据写库）
+### 2. 静态资源目录入库（音频/视频元数据写库）
 
 当你替换了本地 `uploads` / `video` 目录后，可执行一次“扫描目录并写入数据库”。
 
@@ -137,7 +81,64 @@ Docker 模式（推荐）：
 - 会自动 upsert `music_users.artists`（基于音频 artist 字段）和 `music_media.media_lyrics_map`。
 - 默认尝试使用 `ffprobe` 读取时长与标签；无 `ffprobe` 时会回退为文件名信息，`duration_sec=0`。
 
-### 3. 重新编译
+### 3. Docker 常用命令
+
+```bash
+# 启动/停止/重启
+./scripts/docker.sh up
+./scripts/docker.sh down
+./scripts/docker.sh restart
+
+# 查看状态与日志
+./scripts/docker.sh ps
+./scripts/docker.sh logs
+./scripts/docker.sh logs gateway
+
+# 单独执行迁移
+./scripts/docker.sh migrate
+```
+
+### 4. 本地非 Docker 模式（可选）
+
+```bash
+# 首次编译并迁移
+./build.sh
+./migrate.sh
+
+# 启动 / 停止
+./start.sh
+./stop.sh
+```
+
+### 5. 静态资源分离模式（Nginx + Go）
+
+```bash
+# 启动：Nginx(8080) + Go后端(127.0.0.1:18080)
+./start_split.sh
+
+# 停止
+./stop_split.sh
+```
+
+详细说明见 `STATIC_SPLIT_DEPLOY.md`。微服务演进路线见 `MICROSERVICE_ROADMAP.md`。
+
+### 6. API 文档（OpenAPI）
+
+```bash
+# 网关 API OpenAPI 3.0 文档
+docs/openapi.yaml
+
+# 启动 Swagger UI 预览（默认 http://127.0.0.1:18090/swagger-ui.html）
+./scripts/openapi_preview.sh start
+
+# 查看状态 / 停止
+./scripts/openapi_preview.sh status
+./scripts/openapi_preview.sh stop
+```
+
+可直接导入 Swagger UI / Redoc。当前文档覆盖网关可访问接口（含兼容接口）。最近一次实测报告见 `API_DOC_TEST_REPORT.md`。
+
+### 7. 重新编译（本地模式）
 
 ```bash
 # 停止服务
