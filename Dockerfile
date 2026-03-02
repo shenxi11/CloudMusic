@@ -15,7 +15,8 @@ RUN mkdir -p /out \
     && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/media_server cmd/media/main.go \
     && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/video_server cmd/video/main.go \
     && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/event_worker cmd/eventworker/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/migrator cmd/migrator/main.go
+    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/migrator cmd/migrator/main.go \
+    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/media_indexer cmd/mediaindexer/main.go
 
 FROM debian:bookworm-slim AS runtime
 
@@ -30,7 +31,7 @@ COPY scripts/docker/wait_for.sh /app/scripts/docker/wait_for.sh
 COPY configs/config.docker.yaml /app/configs/config.yaml
 COPY migrations/sql /app/migrations/sql
 
-RUN chmod +x /app/music_server /app/auth_server /app/catalog_server /app/profile_server /app/media_server /app/video_server /app/event_worker /app/migrator /app/scripts/docker/wait_for.sh \
+RUN chmod +x /app/music_server /app/auth_server /app/catalog_server /app/profile_server /app/media_server /app/video_server /app/event_worker /app/migrator /app/media_indexer /app/scripts/docker/wait_for.sh \
     && mkdir -p /data/uploads /data/video /data/uploads_hls /app/migrations/sql
 
 CMD ["/app/music_server"]

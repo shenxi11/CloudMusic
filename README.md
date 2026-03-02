@@ -111,6 +111,32 @@ cd microservice-deploy
 - 媒体与视频目录默认挂载仓库内 `./.data/*`；如果你有已有资源，可在 `.env.docker` 修改 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR`。
 - 空数据库首启会自动建核心表（`users/music_files/artists/user_path`）；首次登录请先调用注册接口创建账号。
 
+### 2.4 静态资源目录入库（音频/视频元数据写库）
+
+当你替换了本地 `uploads` / `video` 目录后，可执行一次“扫描目录并写入数据库”。
+
+本地模式（非 Docker）：
+```bash
+./scripts/sync_media_db.sh \
+  -config configs/config.yaml \
+  -audio-dir /your/uploads/path \
+  -video-dir /your/video/path
+```
+
+Docker 模式（推荐）：
+```bash
+# 使用 compose 中挂载的 /data/uploads 和 /data/video
+./scripts/docker.sh sync-media
+
+# 或传自定义参数（例如 dry-run）
+./scripts/docker.sh sync-media -dry-run -config /app/configs/config.yaml -audio-dir /data/uploads -video-dir /data/video
+```
+
+说明：
+- 脚本会幂等 upsert 到 `music_users.music_files`（音频 `is_audio=1`，视频 `is_audio=0`）。
+- 会自动 upsert `music_users.artists`（基于音频 artist 字段）和 `music_media.media_lyrics_map`。
+- 默认尝试使用 `ffprobe` 读取时长与标签；无 `ffprobe` 时会回退为文件名信息，`duration_sec=0`。
+
 ### 3. 重新编译
 
 ```bash

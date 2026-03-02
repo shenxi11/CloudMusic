@@ -90,6 +90,8 @@ EVENT_WORKER_MAIN_FILE="$SCRIPT_DIR/cmd/eventworker/main.go"
 EVENT_WORKER_OUTPUT_FILE="$SCRIPT_DIR/event_worker"
 MIGRATOR_MAIN_FILE="$SCRIPT_DIR/cmd/migrator/main.go"
 MIGRATOR_OUTPUT_FILE="$SCRIPT_DIR/migrator"
+MEDIA_INDEXER_MAIN_FILE="$SCRIPT_DIR/cmd/mediaindexer/main.go"
+MEDIA_INDEXER_OUTPUT_FILE="$SCRIPT_DIR/media_indexer"
 
 # 编译选项说明：
 # -o: 指定输出文件名
@@ -133,6 +135,11 @@ if go build -ldflags="-s -w" -o "$OUTPUT_FILE" "$MAIN_FILE"; then
         echo -e "${BLUE}编译命令: go build -ldflags=\"-s -w\" -o migrator cmd/migrator/main.go${NC}"
         go build -ldflags="-s -w" -o "$MIGRATOR_OUTPUT_FILE" "$MIGRATOR_MAIN_FILE"
         chmod +x "$MIGRATOR_OUTPUT_FILE"
+    fi
+    if [ -f "$MEDIA_INDEXER_MAIN_FILE" ]; then
+        echo -e "${BLUE}编译命令: go build -ldflags=\"-s -w\" -o media_indexer cmd/mediaindexer/main.go${NC}"
+        go build -ldflags="-s -w" -o "$MEDIA_INDEXER_OUTPUT_FILE" "$MEDIA_INDEXER_MAIN_FILE"
+        chmod +x "$MEDIA_INDEXER_OUTPUT_FILE"
     fi
 
     echo ""
@@ -191,6 +198,12 @@ if go build -ldflags="-s -w" -o "$OUTPUT_FILE" "$MAIN_FILE"; then
         echo -e "  文件路径: ${GREEN}$MIGRATOR_OUTPUT_FILE${NC}"
         echo -e "  文件大小: ${GREEN}$MIGRATOR_FILE_SIZE${NC}"
         echo -e "  权限:     ${GREEN}$(ls -lh $MIGRATOR_OUTPUT_FILE | awk '{print $1}')${NC}"
+    fi
+    if [ -f "$MEDIA_INDEXER_OUTPUT_FILE" ]; then
+        MEDIA_INDEXER_FILE_SIZE=$(du -h "$MEDIA_INDEXER_OUTPUT_FILE" | cut -f1)
+        echo -e "  文件路径: ${GREEN}$MEDIA_INDEXER_OUTPUT_FILE${NC}"
+        echo -e "  文件大小: ${GREEN}$MEDIA_INDEXER_FILE_SIZE${NC}"
+        echo -e "  权限:     ${GREEN}$(ls -lh $MEDIA_INDEXER_OUTPUT_FILE | awk '{print $1}')${NC}"
     fi
     echo ""
     

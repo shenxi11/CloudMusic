@@ -20,6 +20,7 @@ Commands:
   ps            Show container status
   config        Render and print compose config
   migrate       Run migrator once
+  sync-media    Scan media dirs and upsert DB metadata (passes args to media_indexer)
   build         Build app image only
   help          Show this help
 USAGE
@@ -125,6 +126,19 @@ case "$cmd" in
     ensure_env_file
     render_config
     compose run --rm migrator "$@"
+    ;;
+  sync-media)
+    ensure_env_file
+    render_config
+    ensure_data_dirs
+    if [[ $# -eq 0 ]]; then
+      compose run --rm music-server /app/media_indexer \
+        -config /app/configs/config.yaml \
+        -audio-dir /data/uploads \
+        -video-dir /data/video
+    else
+      compose run --rm music-server /app/media_indexer "$@"
+    fi
     ;;
   build)
     ensure_env_file
