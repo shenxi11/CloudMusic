@@ -1,0 +1,277 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ${COMPOSE_PROJECT_NAME:-music-platform}-mysql
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_please}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-music_users}
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "${MYSQL_EXPOSE_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-music-platform}-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+        fi
+        exec redis-server --appendonly yes
+    ports:
+      - "${REDIS_EXPOSE_PORT:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      exec /app/migrator -config /app/configs/config.yaml -service all'
+
+  music-server:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+      - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads
+      - ${HOST_VIDEO_DIR:-./.data/video}:/data/video
+      - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      /app/scripts/docker/wait_for.sh redis 6379 120 &&
+      ln -sf /proc/1/fd/1 /app/server.log &&
+      exec /app/music_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18080"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  auth-service:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 18081
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      /app/scripts/docker/wait_for.sh redis 6379 120 &&
+      ln -sf /proc/1/fd/1 /app/auth_server.log &&
+      exec /app/auth_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18081"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  catalog-service:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CATALOG_SERVICE_HOST: 0.0.0.0
+      CATALOG_SERVICE_PORT: 18082
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      ln -sf /proc/1/fd/1 /app/catalog_server.log &&
+      exec /app/catalog_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18082"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  profile-service:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      PROFILE_SERVICE_HOST: 0.0.0.0
+      PROFILE_SERVICE_PORT: 18083
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      /app/scripts/docker/wait_for.sh redis 6379 120 &&
+      ln -sf /proc/1/fd/1 /app/profile_server.log &&
+      exec /app/profile_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18083"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  media-service:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+      - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads
+      - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      MEDIA_SERVICE_HOST: 0.0.0.0
+      MEDIA_SERVICE_PORT: 18084
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      ln -sf /proc/1/fd/1 /app/media_server.log &&
+      exec /app/media_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18084"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  video-service:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+      - ${HOST_VIDEO_DIR:-./.data/video}:/data/video:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      VIDEO_SERVICE_HOST: 0.0.0.0
+      VIDEO_SERVICE_PORT: 18085
+    command: >
+      /bin/bash -lc
+      'ln -sf /proc/1/fd/1 /app/video_server.log &&
+      exec /app/video_server'
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "18085"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  event-worker:
+    image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    command: >
+      /bin/bash -lc
+      '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
+      /app/scripts/docker/wait_for.sh redis 6379 120 &&
+      ln -sf /proc/1/fd/1 /app/event_worker.log &&
+      exec /app/event_worker'
+
+  gateway:
+    image: nginx:1.27-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-music-platform}-gateway
+    restart: unless-stopped
+    depends_on:
+      music-server:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      catalog-service:
+        condition: service_started
+      profile-service:
+        condition: service_started
+      media-service:
+        condition: service_started
+      video-service:
+        condition: service_started
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./deploy/nginx/nginx.docker.conf:/etc/nginx/nginx.conf:ro
+      - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads:ro
+      - ${HOST_VIDEO_DIR:-./.data/video}:/data/video:ro
+      - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mysql_data:
+  redis_data:

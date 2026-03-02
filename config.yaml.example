@@ -1,0 +1,50 @@
+# 微服务音乐平台配置文件示例
+# 使用前请复制为 config.yaml 并修改相关配置
+
+server:
+  address: ":8080"                    # 服务监听地址（通常不需要修改）
+  base_url: "http://localhost:8080"  # ⚠️ 重要：修改为新服务器的实际地址
+  mode: "release"                     # 运行模式：debug/release
+
+database:
+  host: "localhost"                   # ⚠️ 数据库主机地址
+  port: 3306                          # 数据库端口
+  user: "root"                        # ⚠️ 数据库用户名
+  password: "your_password_here"      # ⚠️ 重要：修改为实际密码
+  dbname: "music_users"               # 数据库名称
+  max_idle_conns: 10                  # 最大空闲连接数
+  max_open_conns: 100                 # 最大打开连接数
+  conn_max_lifetime: 3600             # 连接最大生命周期（秒）
+
+redis:
+  addr: "localhost:6379"              # ⚠️ Redis 地址
+  password: ""                        # Redis 密码（如有）
+  db: 0                               # Redis 数据库编号
+  pool_size: 10                       # 连接池大小
+
+upload:
+  path: "./uploads"                   # 上传文件存储路径（相对路径）
+  max_size: 104857600                 # 最大文件大小（100MB）
+  allowed_extensions:                 # 允许的文件扩展名
+    - ".mp3"
+    - ".wav"
+    - ".flac"
+    - ".m4a"
+    - ".aac"
+
+log:
+  level: "info"                       # 日志级别：debug/info/warn/error
+  file: "./logs/server.log"           # 日志文件路径（相对路径）
+  max_size: 100                       # 日志文件最大大小（MB）
+  max_backups: 3                      # 保留的旧日志文件数量
+  max_age: 28                         # 日志文件保留天数
+  compress: true                      # 是否压缩旧日志文件
+
+# ===========================================
+# 新服务器部署时必须修改的配置项：
+# ===========================================
+# 1. server.base_url - 修改为新服务器的公网IP或域名
+# 2. database.password - 修改为MySQL实际密码
+# 3. database.host - 如果MySQL不在本机，修改为实际地址
+# 4. redis.addr - 如果Redis不在本机，修改为实际地址
+# ===========================================

@@ -1,0 +1,34 @@
+# Build outputs
+music_server
+auth_server
+catalog_server
+profile_server
+media_server
+video_server
+event_worker
+migrator
+cmd/monolith/music-server-v2
+
+# Runtime / logs
+*.log
+*.pid
+logs/
+.runtime/
+.bench/
+
+# Local data and uploads
+.data/
+uploads/
+
+# Local deploy backups
+remote_local_deploy/
+
+# Environment / generated config
+.env*
+!.env.docker.example
+configs/config.docker.generated.yaml
+
+# Database export artifacts (keep migration SQL under migrations/sql)
+PROJECT_DB*.sql
+*.tar
+*.tar.gz

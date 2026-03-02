@@ -1,0 +1,1123 @@
+openapi: 3.0.3
+info:
+  title: Music Platform Gateway API
+  version: "2026-02-26"
+  description: |
+    Gateway API for the split architecture deployment.
+    Base gateway: http://127.0.0.1:8080
+    Verified with live tests on 2026-02-26.
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local gateway
+  - url: http://slcdut.xyz:8080
+    description: Public gateway
+
+tags:
+  - name: system
+  - name: auth
+  - name: catalog
+  - name: profile
+  - name: media
+  - name: video
+  - name: compatibility
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Gateway health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /users/register:
+    post:
+      tags: [auth]
+      summary: Register user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              account: demo_account
+              password: demo_password
+              username: demo_user
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+              example:
+                code: 0
+                message: success
+                data:
+                  success: true
+        "409":
+          description: Account already exists
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: this account already exists
+        "400":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /users/login:
+    post:
+      tags: [auth]
+      summary: Login user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              account: demo_account
+              password: demo_password
+      responses:
+        "200":
+          description: Login response (success or fail)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+
+  /files:
+    get:
+      tags: [catalog]
+      summary: List music files
+      operationId: listMusicFiles
+      responses:
+        "200":
+          description: Music list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileListItem"
+
+  /file:
+    get:
+      tags: [catalog]
+      summary: List music files (compat alias)
+      operationId: listMusicFilesCompat
+      responses:
+        "200":
+          description: Music list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileListItem"
+
+  /stream:
+    post:
+      tags: [catalog]
+      summary: Get stream URL by filename
+      operationId: getMusicStreamByFilename
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StreamRequest"
+            example:
+              filename: hua_hai.mp3
+      responses:
+        "200":
+          description: Music stream info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MusicResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /get_music:
+    get:
+      tags: [catalog]
+      summary: Get music detail by path
+      operationId: getMusicByPath
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+          example: hua_hai/hua_hai.mp3
+      responses:
+        "200":
+          description: Music detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MusicResponse"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /music/artist:
+    post:
+      tags: [catalog]
+      summary: Search music by artist
+      operationId: listMusicByArtist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArtistRequest"
+            example:
+              artist: Jay Chou
+      responses:
+        "200":
+          description: Music list filtered by artist
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileListItem"
+
+  /music/search:
+    post:
+      tags: [catalog]
+      summary: Search music by keyword
+      operationId: searchMusic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            example:
+              keyword: hai
+      responses:
+        "200":
+          description: Music search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FileListItem"
+
+  /artist/search:
+    post:
+      tags: [catalog]
+      summary: Check if artist exists
+      operationId: searchArtist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArtistRequest"
+            example:
+              artist: Jay Chou
+      responses:
+        "200":
+          description: Artist existence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtistExistsResponse"
+
+  /user/favorites/add:
+    post:
+      tags: [profile]
+      summary: Add favorite music
+      operationId: addFavorite
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddFavoriteRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Missing user account or invalid body
+
+  /user/favorites:
+    get:
+      tags: [profile]
+      summary: List favorites
+      operationId: listFavorites
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Favorite list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MusicItem"
+        "400":
+          description: Missing user account
+
+  /user/favorites/remove:
+    post:
+      tags: [profile]
+      summary: Remove favorite music
+      operationId: removeFavorite
+      description: user_account can be passed in query/header/body.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: music_path
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoveFavoriteRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Missing parameters
+
+  /user/history/add:
+    post:
+      tags: [profile]
+      summary: Add play history record
+      operationId: addPlayHistory
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddPlayHistoryRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+        "400":
+          description: Missing user account or invalid body
+
+  /user/history:
+    get:
+      tags: [profile]
+      summary: List play history
+      operationId: listPlayHistory
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+        - in: query
+          name: distinct
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Play history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MusicItem"
+
+  /user/history/delete:
+    post:
+      tags: [profile]
+      summary: Delete selected play history by music paths
+      operationId: deletePlayHistory
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeletePlayHistoryRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteActionResponse"
+
+  /user/history/clear:
+    post:
+      tags: [profile]
+      summary: Clear all play history
+      operationId: clearPlayHistory
+      description: Provide user identity with query param user_account or header X-User-Account.
+      parameters:
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteActionResponse"
+
+  /upload:
+    post:
+      tags: [media]
+      summary: Upload file
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Upload success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUploadPath"
+
+  /files/{path}:
+    get:
+      tags: [media]
+      summary: Download file by routed path
+      operationId: downloadFileByPath
+      description: If path contains '/', URL-encode it when calling this endpoint.
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /download:
+    get:
+      tags: [media]
+      summary: Download file by query parameter
+      operationId: downloadFileByQuery
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    post:
+      tags: [media]
+      summary: Download file by POST payload
+      operationId: downloadFileByPost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadPostRequest"
+      responses:
+        "200":
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /lrc:
+    get:
+      tags: [media]
+      summary: Get lyric lines by lyric path
+      operationId: getLyricsByPath
+      parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+          example: hua_hai/hua_hai.lrc
+      responses:
+        "200":
+          description: Lyric lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /uploads/{folder}/lrc:
+    get:
+      tags: [media]
+      summary: Get lyric lines by music folder
+      operationId: getLyricsByFolder
+      parameters:
+        - in: path
+          name: folder
+          required: true
+          schema:
+            type: string
+          example: hua_hai
+      responses:
+        "200":
+          description: Lyric lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /uploads/{path}:
+    get:
+      tags: [media]
+      summary: Serve static media file (nginx direct)
+      operationId: serveUploadedFile
+      description: If path contains '/', URL-encode it when using generated clients.
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Range
+          required: false
+          schema:
+            type: string
+          example: bytes=0-1023
+      responses:
+        "200":
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /videos:
+    get:
+      tags: [video]
+      summary: List videos
+      operationId: listVideos
+      responses:
+        "200":
+          description: Video list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VideoFile"
+
+  /video/stream:
+    post:
+      tags: [video]
+      summary: Get video stream URL
+      operationId: getVideoStream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VideoStreamRequest"
+      responses:
+        "200":
+          description: Video stream response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoStreamResponse"
+
+  /video/{path}:
+    get:
+      tags: [video]
+      summary: Serve static video file (nginx direct)
+      operationId: serveVideoFile
+      description: If path contains '/', URL-encode it when using generated clients.
+      parameters:
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+        - in: header
+          name: Range
+          required: false
+          schema:
+            type: string
+          example: bytes=0-1023
+      responses:
+        "200":
+          description: Video content
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial video content
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+
+  /users/add_music:
+    post:
+      tags: [compatibility]
+      summary: Add favorite in legacy monolith API
+      operationId: addMusicLegacy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMusicRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "500":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /records:
+    get:
+      tags: [compatibility]
+      summary: Legacy records endpoint
+      operationId: getLegacyRecords
+      responses:
+        "200":
+          description: Empty array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /add:
+    post:
+      tags: [compatibility]
+      summary: Legacy add endpoint
+      operationId: postLegacyAdd
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+
+  /stats:
+    get:
+      tags: [system]
+      summary: Basic runtime stats
+      operationId: getStats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+
+  /ack:
+    get:
+      tags: [compatibility]
+      summary: Legacy ack endpoint
+      operationId: getAck
+      responses:
+        "200":
+          description: Empty body
+
+  /:
+    get:
+      tags: [system]
+      summary: Root welcome page
+      operationId: getRootPage
+      responses:
+        "200":
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  responses:
+    ErrorEnvelope:
+      description: Error response envelope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        database:
+          type: boolean
+        redis:
+          type: boolean
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: integer
+          format: int64
+      required: [database, redis, status, timestamp]
+
+    StatsResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: "2.0"
+        timestamp:
+          type: integer
+          format: int64
+      required: [status, version, timestamp]
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required: [code, message]
+
+    EnvelopeSuccessBool:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            success:
+              type: boolean
+          required: [success]
+      required: [code, message, data]
+
+    EnvelopeUploadPath:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          properties:
+            filePath:
+              type: string
+      required: [code, message, data]
+
+    RegisterRequest:
+      type: object
+      required: [account, password, username]
+      properties:
+        account:
+          type: string
+        password:
+          type: string
+        username:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [account, password]
+      properties:
+        account:
+          type: string
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: string
+          enum: ["true", "false"]
+        success_bool:
+          type: boolean
+        username:
+          type: string
+        song_path_list:
+          type: array
+          items:
+            type: string
+      required: [success, success_bool, username, song_path_list]
+
+    AddMusicRequest:
+      type: object
+      required: [username, music_path]
+      properties:
+        username:
+          type: string
+        music_path:
+          type: string
+
+    StreamRequest:
+      type: object
+      required: [filename]
+      properties:
+        filename:
+          type: string
+
+    ArtistRequest:
+      type: object
+      required: [artist]
+      properties:
+        artist:
+          type: string
+
+    SearchRequest:
+      type: object
+      required: [keyword]
+      properties:
+        keyword:
+          type: string
+
+    ArtistExistsResponse:
+      type: object
+      properties:
+        exists:
+          type: boolean
+      required: [exists]
+
+    FileListItem:
+      type: object
+      properties:
+        path:
+          type: string
+        duration:
+          type: string
+        artist:
+          type: string
+        cover_art_url:
+          type: string
+          nullable: true
+      required: [path, duration]
+
+    MusicResponse:
+      type: object
+      properties:
+        stream_url:
+          type: string
+        lrc_url:
+          type: string
+          nullable: true
+        album_cover_url:
+          type: string
+          nullable: true
+        duration:
+          type: number
+          format: double
+          nullable: true
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+      required: [stream_url]
+
+    AddFavoriteRequest:
+      type: object
+      required: [music_path]
+      properties:
+        music_path:
+          type: string
+        music_title:
+          type: string
+        artist:
+          type: string
+        duration_sec:
+          type: number
+          format: double
+        is_local:
+          type: boolean
+
+    RemoveFavoriteRequest:
+      type: object
+      properties:
+        user_account:
+          type: string
+        music_path:
+          type: string
+
+    AddPlayHistoryRequest:
+      type: object
+      required: [music_path]
+      properties:
+        music_path:
+          type: string
+        music_title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration_sec:
+          type: number
+          format: double
+        is_local:
+          type: boolean
+
+    DeletePlayHistoryRequest:
+      type: object
+      required: [music_paths]
+      properties:
+        music_paths:
+          type: array
+          items:
+            type: string
+
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required: [success, message]
+
+    DeleteActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        deleted_count:
+          type: integer
+      required: [success, message, deleted_count]
+
+    MusicItem:
+      type: object
+      properties:
+        path:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration:
+          type: string
+        is_local:
+          type: boolean
+        cover_art_url:
+          type: string
+          nullable: true
+        added_at:
+          type: string
+          nullable: true
+        play_time:
+          type: string
+          nullable: true
+      required: [path]
+
+    DownloadPostRequest:
+      type: object
+      required: [filename]
+      properties:
+        filename:
+          type: string
+
+    VideoFile:
+      type: object
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+          format: int64
+      required: [name, path, size]
+
+    VideoStreamRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+
+    VideoStreamResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required: [url]

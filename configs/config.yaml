@@ -1,0 +1,46 @@
+# Go音频服务器配置文件（部署目录版本）
+server:
+  host: "127.0.0.1"
+  port: 18080
+  public_host: "localhost"
+  public_port: 8080
+  public_base_url: "http://localhost:8080"
+  static_dir: ""
+  upload_dir: "./uploads"
+  video_dir: "./video"
+  enable_tls: false
+  cert_file: ""
+  key_file: ""
+
+database:
+  host: "127.0.0.1"
+  port: 3306
+  user: "root"
+  password: "change_me_please"
+  name: "music_users"
+
+redis:
+  host: "127.0.0.1"
+  port: 6379
+  password: ""
+
+event:
+  bus:
+    stream: "music.domain.events.v1"
+    group: "music-domain-events-group"
+    consumer: ""
+    pending_min_idle_ms: 30000
+    pending_batch_size: 50
+  outbox:
+    poll_interval_ms: 2000
+    batch_size: 50
+    max_retry: 10
+    retry_base_delay_ms: 1000
+  worker:
+    max_retry: 3
+    retry_delay_ms: 300
+
+schemas:
+  profile: "music_profile"
+  catalog: "music_users"
+  media: "music_media"
