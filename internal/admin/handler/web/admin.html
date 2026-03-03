@@ -6,112 +6,275 @@
   <title>CloudMusic 管理后台</title>
   <style>
     :root {
-      --bg: #f2f5f1;
+      --bg: #eef3ef;
       --panel: #ffffff;
-      --ink: #1a2b1f;
-      --sub: #4c6252;
-      --line: #dbe6dc;
-      --accent: #1f7a4f;
-      --accent-2: #145a39;
-      --warn: #9c2c2c;
+      --panel-soft: #f6faf7;
+      --ink: #16271c;
+      --sub: #516656;
+      --line: #d6e3d8;
+      --accent: #1a7a4a;
+      --accent-2: #125f38;
+      --warn: #a33535;
       --ok: #1f7a4f;
+      --shadow: 0 14px 35px rgba(13, 45, 27, 0.1);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       color: var(--ink);
       font-family: "IBM Plex Sans", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
-      background: radial-gradient(1200px 600px at 10% -20%, #dceedd, transparent), radial-gradient(1000px 500px at 100% 0%, #f4ead8, transparent), var(--bg);
+      background: radial-gradient(1200px 650px at -10% -15%, #dbeedb, transparent),
+                  radial-gradient(1100px 650px at 110% -5%, #f6ecd9, transparent),
+                  var(--bg);
     }
-    .wrap {
-      max-width: 1200px;
-      margin: 24px auto 40px;
-      padding: 0 16px;
-    }
-    .hero {
-      background: linear-gradient(135deg, #133d2b, #1f7a4f);
-      color: #f7fff9;
-      border-radius: 14px;
-      padding: 18px 20px;
-      box-shadow: 0 12px 30px rgba(19, 61, 43, 0.22);
-    }
-    .hero h1 { margin: 0; font-size: 26px; letter-spacing: 0.5px; }
-    .hero p { margin: 6px 0 0; color: #dbf2e2; }
-    .grid {
+    .app {
+      min-height: 100vh;
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 14px;
-      margin-top: 14px;
+      grid-template-columns: 280px 1fr;
     }
-    .card {
-      grid-column: span 12;
+    .sidebar {
+      border-right: 1px solid var(--line);
+      background: linear-gradient(180deg, #143c2a, #1d5f3f 60%, #174833);
+      color: #edf9f1;
+      padding: 18px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .brand {
+      margin: 0 4px 14px;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+    .profile-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(220, 246, 227, 0.24);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+    }
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #124028;
+      background: linear-gradient(145deg, #e6f8ea, #c8ebd2);
+      border: 1px solid #a3d3b4;
+    }
+    .profile-meta b {
+      display: block;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+    .profile-meta span {
+      font-size: 12px;
+      color: #d2ebda;
+    }
+    .nav {
+      margin-top: 16px;
+      display: grid;
+      gap: 8px;
+    }
+    .nav-btn {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      padding: 11px 12px;
+      text-align: left;
+      background: transparent;
+      color: #e9f7ee;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(213, 238, 221, 0.22);
+    }
+    .nav-btn.active {
+      background: #f2fbf5;
+      color: #12452b;
+      border-color: #b9dec7;
+    }
+    .nav-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .main {
+      padding: 22px;
+    }
+    .head {
+      background: linear-gradient(145deg, #f7fff8, #edf9f0);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+    .head h1 {
+      margin: 0;
+      font-size: 24px;
+      color: #0f442a;
+    }
+    .head p {
+      margin: 6px 0 0;
+      color: #4f6554;
+    }
+
+    .panel {
+      margin-top: 14px;
+      display: none;
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 14px;
-      box-shadow: 0 8px 20px rgba(9, 30, 18, 0.05);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
     }
-    .card h2 {
+    .panel.active { display: block; }
+    .panel h2 {
       margin: 0 0 10px;
       font-size: 18px;
-      color: #0f3a26;
+      color: #0d4027;
     }
+
     .row {
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
+      grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 10px;
       margin-bottom: 10px;
     }
     .field { grid-column: span 12; }
-    .field.small { grid-column: span 4; }
-    .field.mid { grid-column: span 6; }
+    .field.w4 { grid-column: span 4; }
+    .field.w6 { grid-column: span 6; }
+
     label {
       display: block;
       margin-bottom: 4px;
-      color: var(--sub);
       font-size: 13px;
+      color: var(--sub);
     }
     input, select, button {
       width: 100%;
-      border: 1px solid #c7d8ca;
+      border: 1px solid #c6d8cb;
       border-radius: 9px;
       padding: 10px;
       font-size: 14px;
-      background: #fff;
       color: var(--ink);
+      background: #fff;
     }
-    input:focus, select:focus { outline: 2px solid #b8dfc8; border-color: var(--accent); }
+    input:focus, select:focus {
+      outline: 2px solid #c4e7d1;
+      border-color: var(--accent);
+    }
     button {
       cursor: pointer;
       background: var(--accent);
       border-color: var(--accent);
-      color: #f4fff7;
-      font-weight: 600;
-      transition: all .18s ease;
+      color: #f5fff8;
+      font-weight: 700;
+      transition: 0.15s ease;
     }
     button:hover { background: var(--accent-2); border-color: var(--accent-2); }
     button.ghost {
       background: #fff;
       color: var(--ink);
-      border-color: #b9cbbc;
+      border-color: #b8cdbd;
     }
     button.warn {
       background: var(--warn);
       border-color: var(--warn);
     }
+
     .actions {
       display: flex;
-      gap: 8px;
       flex-wrap: wrap;
-      margin-top: 6px;
+      gap: 8px;
+      margin: 8px 0;
     }
-    .actions button { width: auto; min-width: 110px; }
+    .actions button { width: auto; min-width: 120px; }
+
     .status {
+      margin-top: 6px;
       font-size: 13px;
-      margin-top: 8px;
       color: #234c34;
       white-space: pre-wrap;
       line-height: 1.45;
+    }
+    .status.err { color: #9d3030; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 12px;
+      min-height: 500px;
+    }
+    .artist-list {
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: auto;
+      max-height: 650px;
+      padding: 8px;
+    }
+    .artist-item {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: 9px;
+      color: #173b26;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 10px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .artist-item:hover { background: #eaf5ee; border-color: #cde3d5; }
+    .artist-item.active { background: #dff2e5; border-color: #a8d2b7; }
+    .badge {
+      font-size: 12px;
+      min-width: 24px;
+      text-align: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #e6f5ea;
+      border: 1px solid #bad9c5;
+      color: #24553a;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 650px;
+      border: 1px solid #ebf1ed;
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: #fff;
+    }
+    th, td {
+      border-bottom: 1px solid #edf2ee;
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: middle;
+      word-break: break-all;
+    }
+    th {
+      background: #f7fbf8;
+      color: #476152;
+      font-size: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
     .pill {
       display: inline-block;
@@ -123,148 +286,241 @@
     }
     .pill.ok { color: #0f6b3f; background: #def8ea; border-color: #bceacb; }
     .pill.off { color: #6a6d72; background: #eef0f2; border-color: #dde2e6; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      margin-top: 8px;
-    }
-    th, td {
-      border-bottom: 1px solid #edf2ee;
-      text-align: left;
-      padding: 8px 6px;
-      vertical-align: middle;
-      word-break: break-all;
-    }
-    th { color: #43604e; font-size: 12px; }
+
     .mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
-    .top-right {
-      float: right;
-      color: #ddf4e6;
-      font-size: 12px;
+
+    .drawer-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.36);
       display: none;
+      z-index: 40;
     }
-    @media (min-width: 980px) {
-      .half { grid-column: span 6; }
+    .drawer-mask.show { display: block; }
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 340px;
+      max-width: 92vw;
+      height: 100vh;
+      background: #fff;
+      border-left: 1px solid #dbe5df;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+      transform: translateX(101%);
+      transition: transform 0.2s ease;
+      z-index: 41;
+      padding: 16px;
+    }
+    .drawer.show { transform: translateX(0); }
+    .drawer h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #0f4028;
+    }
+    .meta-card {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel-soft);
+      padding: 12px;
+      font-size: 13px;
+      color: #234334;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .split {
+        grid-template-columns: 1fr;
+      }
+      .artist-list { max-height: 260px; }
+      .main { padding: 14px; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="hero">
-      <span id="currentAdmin" class="top-right"></span>
-      <h1>CloudMusic 管理后台</h1>
-      <p>管理员可执行资源上传、批量删除、用户在线监控。</p>
-    </div>
+  <div class="app">
+    <aside class="sidebar">
+      <h1 class="brand">CloudMusic Admin</h1>
+      <button id="profileTrigger" class="profile-trigger" type="button">
+        <div id="avatarText" class="avatar">A</div>
+        <div class="profile-meta">
+          <b id="sidebarAdminName">未登录</b>
+          <span id="sidebarSessionState">点击登录管理员</span>
+        </div>
+      </button>
 
-    <div class="grid">
-      <section id="loginPanel" class="card half">
+      <nav class="nav" id="navWrap">
+        <button class="nav-btn active" data-tab="tab-login">管理员登录</button>
+        <button class="nav-btn disabled" data-auth="1" data-tab="tab-upload">上传歌曲</button>
+        <button class="nav-btn disabled" data-auth="1" data-tab="tab-music">音乐管理（按歌手）</button>
+        <button class="nav-btn disabled" data-auth="1" data-tab="tab-video">视频管理</button>
+        <button class="nav-btn disabled" data-auth="1" data-tab="tab-users">用户在线状态</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="head">
+        <h1>后台管理控制台</h1>
+        <p id="headDesc">请先完成管理员登录，然后通过左侧 Tab 切换功能模块。</p>
+      </header>
+
+      <section id="tab-login" class="panel active" data-title="管理员登录">
         <h2>管理员登录</h2>
         <div class="row">
-          <div class="field mid">
+          <div class="field w6">
             <label>用户名</label>
             <input id="loginUser" placeholder="admin" autocomplete="username" />
           </div>
-          <div class="field mid">
+          <div class="field w6">
             <label>密码</label>
-            <input id="loginPass" type="password" placeholder="••••••" autocomplete="current-password" />
+            <input id="loginPass" type="password" placeholder="请输入管理员密码" autocomplete="current-password" />
           </div>
         </div>
         <div class="actions">
-          <button id="btnLogin">登录</button>
+          <button id="btnLogin" type="button">登录后台</button>
         </div>
         <div id="loginStatus" class="status"></div>
       </section>
 
-      <section id="uploadPanel" class="card" style="display:none;">
-        <h2>上传歌曲（可选歌词/封面）</h2>
+      <section id="tab-upload" class="panel" data-title="上传歌曲">
+        <h2>上传歌曲（歌曲 + 可选歌词 + 可选封面）</h2>
         <div class="row">
-          <div class="field small">
+          <div class="field w4">
             <label>歌曲文件（必填）</label>
             <input id="songFile" type="file" accept=".mp3,.flac,.wav,.ogg,.m4a,.aac" />
           </div>
-          <div class="field small">
+          <div class="field w4">
             <label>歌词文件（可选）</label>
             <input id="lrcFile" type="file" accept=".lrc,.txt" />
           </div>
-          <div class="field small">
+          <div class="field w4">
             <label>封面图片（可选）</label>
             <input id="coverFile" type="file" accept="image/*" />
           </div>
         </div>
         <div class="row">
-          <div class="field small">
+          <div class="field w4">
             <label>标题（可选）</label>
-            <input id="songTitle" placeholder="为空则自动识别" />
+            <input id="songTitle" placeholder="为空自动识别" />
           </div>
-          <div class="field small">
+          <div class="field w4">
             <label>歌手（可选）</label>
-            <input id="songArtist" placeholder="为空则自动识别" />
+            <input id="songArtist" placeholder="为空自动识别" />
           </div>
-          <div class="field small">
+          <div class="field w4">
             <label>专辑（可选）</label>
-            <input id="songAlbum" placeholder="为空则自动识别" />
+            <input id="songAlbum" placeholder="为空自动识别" />
           </div>
         </div>
         <div class="actions">
-          <button id="btnUploadSong">上传并入库</button>
+          <button id="btnUploadSong" type="button">上传并入库</button>
         </div>
         <div id="uploadStatus" class="status"></div>
       </section>
 
-      <section id="mediaPanel" class="card" style="display:none;">
-        <h2>资源管理（音频/视频批量操作）</h2>
+      <section id="tab-music" class="panel" data-title="音乐管理（按歌手）">
+        <h2>音乐管理（按歌手分组）</h2>
         <div class="row">
-          <div class="field small">
-            <label>类型</label>
-            <select id="mediaType">
-              <option value="audio">音频</option>
-              <option value="video">视频</option>
-              <option value="all">全部</option>
-            </select>
+          <div class="field w6">
+            <label>关键词（匹配歌手/标题/路径）</label>
+            <input id="musicKeyword" placeholder="例如：周杰伦 / 七里香" />
           </div>
-          <div class="field mid">
-            <label>关键词</label>
-            <input id="mediaKeyword" placeholder="按 path/title/artist/album 检索" />
+          <div class="field w4">
+            <label>扫描条数上限</label>
+            <input id="musicLimit" type="number" value="2000" min="1" max="8000" />
           </div>
-          <div class="field small">
-            <label>条数</label>
-            <input id="mediaLimit" type="number" value="200" min="1" max="1000" />
+          <div class="field w4">
+            <label>当前选中歌手</label>
+            <input id="activeArtistName" readonly />
           </div>
         </div>
         <div class="actions">
-          <button id="btnLoadMedia">刷新列表</button>
-          <button id="btnSelectAll" class="ghost">全选</button>
-          <button id="btnDeleteDb" class="warn">批量删库记录</button>
-          <button id="btnDeleteDbFiles" class="warn">批量删库+文件</button>
+          <button id="btnLoadMusic" type="button">刷新歌手与歌曲</button>
+          <button id="btnMusicSelectAll" class="ghost" type="button">全选当前歌手</button>
+          <button id="btnDeleteMusicDb" class="warn" type="button">删除选中（仅删库）</button>
+          <button id="btnDeleteMusicDbFiles" class="warn" type="button">删除选中（删库+文件）</button>
         </div>
-        <div id="mediaStatus" class="status"></div>
-        <div style="overflow:auto; max-height: 460px; margin-top:8px;">
+
+        <div class="split">
+          <div>
+            <div class="artist-list" id="artistList"></div>
+            <div id="musicArtistStatus" class="status"></div>
+          </div>
+          <div>
+            <div id="musicStatus" class="status"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:40px;"><input id="chkMusicAll" type="checkbox" /></th>
+                    <th>path</th>
+                    <th>title</th>
+                    <th>album</th>
+                    <th>duration</th>
+                    <th>size</th>
+                    <th>updated_at</th>
+                  </tr>
+                </thead>
+                <tbody id="musicTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-video" class="panel" data-title="视频管理">
+        <h2>视频管理</h2>
+        <div class="row">
+          <div class="field w6">
+            <label>关键词（匹配 path/title/artist/album）</label>
+            <input id="videoKeyword" placeholder="输入关键词筛选视频" />
+          </div>
+          <div class="field w4">
+            <label>条数</label>
+            <input id="videoLimit" type="number" value="400" min="1" max="1000" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="btnLoadVideo" type="button">刷新视频列表</button>
+          <button id="btnVideoSelectAll" class="ghost" type="button">全选</button>
+          <button id="btnDeleteVideoDb" class="warn" type="button">删除选中（仅删库）</button>
+          <button id="btnDeleteVideoDbFiles" class="warn" type="button">删除选中（删库+文件）</button>
+        </div>
+        <div id="videoStatus" class="status"></div>
+        <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th style="width:40px;"><input id="chkAll" type="checkbox" /></th>
+                <th style="width:40px;"><input id="chkVideoAll" type="checkbox" /></th>
                 <th>path</th>
                 <th>title</th>
                 <th>artist</th>
-                <th>type</th>
                 <th>size</th>
                 <th>updated_at</th>
               </tr>
             </thead>
-            <tbody id="mediaTableBody"></tbody>
+            <tbody id="videoTableBody"></tbody>
           </table>
         </div>
       </section>
 
-      <section id="usersPanel" class="card" style="display:none;">
+      <section id="tab-users" class="panel" data-title="用户在线状态">
         <h2>客户端用户与在线状态</h2>
         <div class="actions">
-          <button id="btnLoadUsers">刷新用户状态</button>
-          <button id="btnLogout" class="ghost">退出管理员</button>
+          <button id="btnLoadUsers" type="button">刷新用户状态</button>
         </div>
         <div id="usersStatus" class="status"></div>
-        <div style="overflow:auto; max-height: 360px; margin-top:8px;">
+        <div class="table-wrap">
           <table>
             <thead>
               <tr>
@@ -278,25 +534,39 @@
           </table>
         </div>
       </section>
-    </div>
+    </main>
   </div>
 
+  <div id="drawerMask" class="drawer-mask"></div>
+  <aside id="profileDrawer" class="drawer">
+    <h3>管理员信息</h3>
+    <div class="meta-card">
+      <div><b>账号：</b><span id="drawerAdminName">-</span></div>
+      <div><b>会话状态：</b><span id="drawerSessionState">未登录</span></div>
+      <div style="margin-top:10px;"><b>说明：</b>此处用于查看管理员资料并控制登录状态。</div>
+    </div>
+    <div class="actions" style="margin-top:14px;">
+      <button id="btnDrawerClose" class="ghost" type="button">关闭</button>
+      <button id="btnDrawerLogout" class="warn" type="button">退出管理员</button>
+    </div>
+  </aside>
+
   <script>
-    const loginPanel = document.getElementById('loginPanel');
-    const uploadPanel = document.getElementById('uploadPanel');
-    const mediaPanel = document.getElementById('mediaPanel');
-    const usersPanel = document.getElementById('usersPanel');
-    const currentAdmin = document.getElementById('currentAdmin');
+    const state = {
+      authed: false,
+      admin: '',
+      musicGroups: [],
+      activeArtist: '',
+      videoItems: []
+    };
 
-    const mediaTableBody = document.getElementById('mediaTableBody');
-    const usersTableBody = document.getElementById('usersTableBody');
-
-    let mediaItems = [];
+    const navButtons = Array.from(document.querySelectorAll('.nav-btn'));
+    const panels = Array.from(document.querySelectorAll('.panel'));
 
     function setStatus(id, msg, isErr = false) {
       const el = document.getElementById(id);
-      el.style.color = isErr ? '#9c2c2c' : '#234c34';
-      el.textContent = msg;
+      el.classList.toggle('err', !!isErr);
+      el.textContent = msg || '';
     }
 
     function bytesLabel(v) {
@@ -311,6 +581,14 @@
     function tsLabel(ts) {
       if (!ts) return '-';
       return new Date(ts * 1000).toLocaleString();
+    }
+
+    function durLabel(v) {
+      if (!v || Number(v) <= 0) return '-';
+      const sec = Math.floor(Number(v));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${String(s).padStart(2, '0')}`;
     }
 
     async function api(path, options = {}) {
@@ -328,31 +606,72 @@
       return data;
     }
 
-    function showAuthed(username) {
-      loginPanel.style.display = 'none';
-      uploadPanel.style.display = '';
-      mediaPanel.style.display = '';
-      usersPanel.style.display = '';
-      currentAdmin.style.display = 'inline-block';
-      currentAdmin.textContent = `Admin: ${username}`;
+    function setAuthUI(authed, username = '') {
+      state.authed = authed;
+      state.admin = username || '';
+
+      const sideName = document.getElementById('sidebarAdminName');
+      const sideState = document.getElementById('sidebarSessionState');
+      const drawerName = document.getElementById('drawerAdminName');
+      const drawerState = document.getElementById('drawerSessionState');
+      const avatarText = document.getElementById('avatarText');
+
+      if (authed) {
+        sideName.textContent = username;
+        sideState.textContent = '在线会话中';
+        drawerName.textContent = username;
+        drawerState.textContent = '已登录';
+        avatarText.textContent = (username[0] || 'A').toUpperCase();
+      } else {
+        sideName.textContent = '未登录';
+        sideState.textContent = '点击登录管理员';
+        drawerName.textContent = '-';
+        drawerState.textContent = '未登录';
+        avatarText.textContent = 'A';
+      }
+
+      navButtons.forEach(btn => {
+        if (btn.dataset.auth === '1') {
+          btn.classList.toggle('disabled', !authed);
+        }
+      });
     }
 
-    function showLoggedOut() {
-      loginPanel.style.display = '';
-      uploadPanel.style.display = 'none';
-      mediaPanel.style.display = 'none';
-      usersPanel.style.display = 'none';
-      currentAdmin.style.display = 'none';
-      currentAdmin.textContent = '';
+    function switchTab(tabId) {
+      const targetBtn = navButtons.find(b => b.dataset.tab === tabId);
+      if (!targetBtn) return;
+      if (targetBtn.dataset.auth === '1' && !state.authed) {
+        setStatus('loginStatus', '请先登录管理员账号', true);
+        tabId = 'tab-login';
+      }
+
+      navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
+      panels.forEach(p => p.classList.toggle('active', p.id === tabId));
+
+      const panel = document.getElementById(tabId);
+      document.getElementById('headDesc').textContent = panel?.dataset.title || '管理控制台';
+    }
+
+    function openDrawer() {
+      document.getElementById('drawerMask').classList.add('show');
+      document.getElementById('profileDrawer').classList.add('show');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawerMask').classList.remove('show');
+      document.getElementById('profileDrawer').classList.remove('show');
     }
 
     async function checkSession() {
       try {
         const ret = await api('/admin/api/session');
-        showAuthed(ret?.data?.username || 'admin');
-        await Promise.all([loadMedia(), loadUsers()]);
+        const username = ret?.data?.username || 'admin';
+        setAuthUI(true, username);
+        switchTab('tab-music');
+        await Promise.all([loadMusicByArtist(), loadVideo(), loadUsers()]);
       } catch (_) {
-        showLoggedOut();
+        setAuthUI(false, '');
+        switchTab('tab-login');
       }
     }
 
@@ -369,9 +688,11 @@
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({username, password}),
         });
+        const adminName = ret?.data?.username || username;
+        setAuthUI(true, adminName);
         setStatus('loginStatus', '登录成功');
-        showAuthed(ret?.data?.username || username);
-        await Promise.all([loadMedia(), loadUsers()]);
+        switchTab('tab-music');
+        await Promise.all([loadMusicByArtist(), loadVideo(), loadUsers()]);
       } catch (e) {
         setStatus('loginStatus', `登录失败: ${e.message}`, true);
       }
@@ -381,78 +702,10 @@
       try {
         await api('/admin/api/logout', { method: 'POST' });
       } catch (_) {}
-      showLoggedOut();
-      setStatus('usersStatus', '已退出管理员账号');
-    }
-
-    async function loadMedia() {
-      const type = document.getElementById('mediaType').value;
-      const keyword = document.getElementById('mediaKeyword').value.trim();
-      const limit = document.getElementById('mediaLimit').value || '200';
-
-      const params = new URLSearchParams();
-      if (type && type !== 'all') params.set('type', type);
-      if (keyword) params.set('keyword', keyword);
-      params.set('limit', limit);
-
-      try {
-        const ret = await api(`/admin/api/media?${params.toString()}`);
-        mediaItems = ret?.data || [];
-        renderMediaTable();
-        setStatus('mediaStatus', `加载完成：${mediaItems.length} 条`);
-      } catch (e) {
-        setStatus('mediaStatus', `加载失败: ${e.message}`, true);
-      }
-    }
-
-    function renderMediaTable() {
-      mediaTableBody.innerHTML = mediaItems.map((m, i) => `
-        <tr>
-          <td><input type="checkbox" class="mediaChk" data-index="${i}" /></td>
-          <td class="mono">${m.path || ''}</td>
-          <td>${m.title || ''}</td>
-          <td>${m.artist || ''}</td>
-          <td>${m.is_audio ? 'audio' : 'video'}</td>
-          <td>${bytesLabel(m.size_bytes)}</td>
-          <td>${m.updated_at || ''}</td>
-        </tr>
-      `).join('');
-      document.getElementById('chkAll').checked = false;
-    }
-
-    function selectedMediaPaths() {
-      const checks = Array.from(document.querySelectorAll('.mediaChk:checked'));
-      const paths = [];
-      checks.forEach(c => {
-        const idx = Number(c.dataset.index);
-        if (Number.isInteger(idx) && mediaItems[idx]?.path) paths.push(mediaItems[idx].path);
-      });
-      return paths;
-    }
-
-    async function batchDelete(deleteFiles) {
-      const paths = selectedMediaPaths();
-      if (!paths.length) {
-        setStatus('mediaStatus', '请先勾选要操作的资源', true);
-        return;
-      }
-      if (!confirm(`确认删除 ${paths.length} 条资源${deleteFiles ? '（同时删除物理文件）' : ''}？`)) {
-        return;
-      }
-
-      try {
-        const ret = await api('/admin/api/media/delete', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ paths, delete_files: deleteFiles }),
-        });
-        const data = ret?.data || {};
-        const warn = data.warnings?.length ? `\n警告:\n- ${data.warnings.join('\n- ')}` : '';
-        setStatus('mediaStatus', `删除完成: db=${data.deleted_rows || 0}, files=${(data.deleted_files || []).length}${warn}`);
-        await loadMedia();
-      } catch (e) {
-        setStatus('mediaStatus', `删除失败: ${e.message}`, true);
-      }
+      setAuthUI(false, '');
+      closeDrawer();
+      switchTab('tab-login');
+      setStatus('loginStatus', '已退出管理员账号');
     }
 
     async function uploadSong() {
@@ -473,15 +726,170 @@
       fd.append('album', document.getElementById('songAlbum').value.trim());
 
       try {
-        const ret = await api('/admin/api/upload/song', {
-          method: 'POST',
-          body: fd,
-        });
+        const ret = await api('/admin/api/upload/song', { method: 'POST', body: fd });
         const d = ret?.data || {};
-        setStatus('uploadStatus', `上传成功\npath=${d.path || ''}\ntitle=${d.title || ''}\nartist=${d.artist || ''}`);
-        await loadMedia();
+        setStatus('uploadStatus', `上传成功\npath=${d.path || ''}\nartist=${d.artist || ''}`);
+        await loadMusicByArtist();
       } catch (e) {
         setStatus('uploadStatus', `上传失败: ${e.message}`, true);
+      }
+    }
+
+    async function loadMusicByArtist() {
+      const keyword = document.getElementById('musicKeyword').value.trim();
+      const limit = document.getElementById('musicLimit').value || '2000';
+      const params = new URLSearchParams();
+      if (keyword) params.set('keyword', keyword);
+      params.set('limit', limit);
+
+      try {
+        const ret = await api(`/admin/api/media/by-artist?${params.toString()}`);
+        state.musicGroups = ret?.data || [];
+        if (!state.musicGroups.length) {
+          state.activeArtist = '';
+          renderArtistList();
+          renderMusicTable([]);
+          document.getElementById('activeArtistName').value = '';
+          setStatus('musicArtistStatus', '暂无音乐数据');
+          setStatus('musicStatus', '');
+          return;
+        }
+
+        if (!state.musicGroups.some(g => g.artist === state.activeArtist)) {
+          state.activeArtist = state.musicGroups[0].artist;
+        }
+        renderArtistList();
+        renderActiveArtistSongs();
+
+        const totalSongs = state.musicGroups.reduce((sum, g) => sum + (g.count || 0), 0);
+        setStatus('musicArtistStatus', `歌手数: ${state.musicGroups.length}，歌曲数: ${totalSongs}`);
+      } catch (e) {
+        setStatus('musicArtistStatus', `加载失败: ${e.message}`, true);
+      }
+    }
+
+    function renderArtistList() {
+      const list = document.getElementById('artistList');
+      if (!state.musicGroups.length) {
+        list.innerHTML = '<div class="status">暂无歌手数据</div>';
+        return;
+      }
+      list.innerHTML = state.musicGroups.map(g => `
+        <button class="artist-item ${g.artist === state.activeArtist ? 'active' : ''}" data-artist="${escapeHtml(g.artist)}" type="button">
+          <span>${escapeHtml(g.artist)}</span>
+          <span class="badge">${g.count || 0}</span>
+        </button>
+      `).join('');
+
+      list.querySelectorAll('.artist-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeArtist = btn.dataset.artist;
+          renderArtistList();
+          renderActiveArtistSongs();
+        });
+      });
+    }
+
+    function renderActiveArtistSongs() {
+      const group = state.musicGroups.find(g => g.artist === state.activeArtist);
+      const items = group?.items || [];
+      document.getElementById('activeArtistName').value = state.activeArtist || '';
+      renderMusicTable(items);
+      setStatus('musicStatus', `${state.activeArtist || '-'}：${items.length} 首`);
+    }
+
+    function renderMusicTable(items) {
+      const tbody = document.getElementById('musicTableBody');
+      tbody.innerHTML = items.map(m => `
+        <tr>
+          <td><input type="checkbox" class="musicChk" data-path="${escapeHtml(m.path || '')}" /></td>
+          <td class="mono">${escapeHtml(m.path || '')}</td>
+          <td>${escapeHtml(m.title || '')}</td>
+          <td>${escapeHtml(m.album || '')}</td>
+          <td>${durLabel(m.duration_sec)}</td>
+          <td>${bytesLabel(m.size_bytes)}</td>
+          <td>${escapeHtml(m.updated_at || '')}</td>
+        </tr>
+      `).join('');
+      document.getElementById('chkMusicAll').checked = false;
+    }
+
+    function selectedMusicPaths() {
+      return Array.from(document.querySelectorAll('.musicChk:checked'))
+        .map(i => i.dataset.path)
+        .filter(Boolean);
+    }
+
+    async function batchDeleteMusic(deleteFiles) {
+      const paths = selectedMusicPaths();
+      if (!paths.length) {
+        setStatus('musicStatus', '请先勾选当前歌手下的歌曲', true);
+        return;
+      }
+      await batchDelete(paths, deleteFiles, 'musicStatus', loadMusicByArtist);
+    }
+
+    async function loadVideo() {
+      const keyword = document.getElementById('videoKeyword').value.trim();
+      const limit = document.getElementById('videoLimit').value || '400';
+      const params = new URLSearchParams({type: 'video', limit});
+      if (keyword) params.set('keyword', keyword);
+
+      try {
+        const ret = await api(`/admin/api/media?${params.toString()}`);
+        state.videoItems = ret?.data || [];
+        const tbody = document.getElementById('videoTableBody');
+        tbody.innerHTML = state.videoItems.map((m, i) => `
+          <tr>
+            <td><input type="checkbox" class="videoChk" data-index="${i}" /></td>
+            <td class="mono">${escapeHtml(m.path || '')}</td>
+            <td>${escapeHtml(m.title || '')}</td>
+            <td>${escapeHtml(m.artist || '')}</td>
+            <td>${bytesLabel(m.size_bytes)}</td>
+            <td>${escapeHtml(m.updated_at || '')}</td>
+          </tr>
+        `).join('');
+        document.getElementById('chkVideoAll').checked = false;
+        setStatus('videoStatus', `视频条数: ${state.videoItems.length}`);
+      } catch (e) {
+        setStatus('videoStatus', `加载失败: ${e.message}`, true);
+      }
+    }
+
+    function selectedVideoPaths() {
+      const checks = Array.from(document.querySelectorAll('.videoChk:checked'));
+      const paths = [];
+      checks.forEach(c => {
+        const idx = Number(c.dataset.index);
+        if (Number.isInteger(idx) && state.videoItems[idx]?.path) paths.push(state.videoItems[idx].path);
+      });
+      return paths;
+    }
+
+    async function batchDeleteVideo(deleteFiles) {
+      const paths = selectedVideoPaths();
+      if (!paths.length) {
+        setStatus('videoStatus', '请先勾选视频', true);
+        return;
+      }
+      await batchDelete(paths, deleteFiles, 'videoStatus', loadVideo);
+    }
+
+    async function batchDelete(paths, deleteFiles, statusId, reloadFn) {
+      if (!confirm(`确认删除 ${paths.length} 条资源${deleteFiles ? '（同时删除物理文件）' : ''}？`)) return;
+      try {
+        const ret = await api('/admin/api/media/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ paths, delete_files: deleteFiles }),
+        });
+        const data = ret?.data || {};
+        const warns = (data.warnings || []).slice(0, 5);
+        const warnText = warns.length ? `\n警告:\n- ${warns.join('\n- ')}` : '';
+        setStatus(statusId, `删除完成：db=${data.deleted_rows || 0}, files=${(data.deleted_files || []).length}${warnText}`);
+        await reloadFn();
+      } catch (e) {
+        setStatus(statusId, `删除失败: ${e.message}`, true);
       }
     }
 
@@ -489,34 +897,71 @@
       try {
         const ret = await api('/admin/api/users');
         const users = ret?.data || [];
-        usersTableBody.innerHTML = users.map(u => `
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = users.map(u => `
           <tr>
-            <td class="mono">${u.account || ''}</td>
-            <td>${u.username || ''}</td>
+            <td class="mono">${escapeHtml(u.account || '')}</td>
+            <td>${escapeHtml(u.username || '')}</td>
             <td>${u.online ? '<span class="pill ok">在线</span>' : '<span class="pill off">离线</span>'}</td>
             <td>${tsLabel(u.last_seen_at)}</td>
           </tr>
         `).join('');
         setStatus('usersStatus', `用户总数: ${users.length}`);
       } catch (e) {
-        setStatus('usersStatus', `加载用户失败: ${e.message}`, true);
+        setStatus('usersStatus', `加载失败: ${e.message}`, true);
       }
     }
 
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    document.getElementById('profileTrigger').addEventListener('click', () => {
+      if (!state.authed) {
+        switchTab('tab-login');
+        return;
+      }
+      openDrawer();
+    });
+    document.getElementById('drawerMask').addEventListener('click', closeDrawer);
+    document.getElementById('btnDrawerClose').addEventListener('click', closeDrawer);
+    document.getElementById('btnDrawerLogout').addEventListener('click', doLogout);
+
     document.getElementById('btnLogin').addEventListener('click', doLogin);
     document.getElementById('btnUploadSong').addEventListener('click', uploadSong);
-    document.getElementById('btnLoadMedia').addEventListener('click', loadMedia);
+
+    document.getElementById('btnLoadMusic').addEventListener('click', loadMusicByArtist);
+    document.getElementById('btnMusicSelectAll').addEventListener('click', () => {
+      document.querySelectorAll('.musicChk').forEach(c => c.checked = true);
+      document.getElementById('chkMusicAll').checked = true;
+    });
+    document.getElementById('chkMusicAll').addEventListener('change', (e) => {
+      document.querySelectorAll('.musicChk').forEach(c => c.checked = e.target.checked);
+    });
+    document.getElementById('btnDeleteMusicDb').addEventListener('click', () => batchDeleteMusic(false));
+    document.getElementById('btnDeleteMusicDbFiles').addEventListener('click', () => batchDeleteMusic(true));
+
+    document.getElementById('btnLoadVideo').addEventListener('click', loadVideo);
+    document.getElementById('btnVideoSelectAll').addEventListener('click', () => {
+      document.querySelectorAll('.videoChk').forEach(c => c.checked = true);
+      document.getElementById('chkVideoAll').checked = true;
+    });
+    document.getElementById('chkVideoAll').addEventListener('change', (e) => {
+      document.querySelectorAll('.videoChk').forEach(c => c.checked = e.target.checked);
+    });
+    document.getElementById('btnDeleteVideoDb').addEventListener('click', () => batchDeleteVideo(false));
+    document.getElementById('btnDeleteVideoDbFiles').addEventListener('click', () => batchDeleteVideo(true));
+
     document.getElementById('btnLoadUsers').addEventListener('click', loadUsers);
-    document.getElementById('btnDeleteDb').addEventListener('click', () => batchDelete(false));
-    document.getElementById('btnDeleteDbFiles').addEventListener('click', () => batchDelete(true));
-    document.getElementById('btnLogout').addEventListener('click', doLogout);
-    document.getElementById('btnSelectAll').addEventListener('click', () => {
-      document.querySelectorAll('.mediaChk').forEach(c => c.checked = true);
-      document.getElementById('chkAll').checked = true;
-    });
-    document.getElementById('chkAll').addEventListener('change', (e) => {
-      document.querySelectorAll('.mediaChk').forEach(c => c.checked = e.target.checked);
-    });
 
     checkSession();
   </script>

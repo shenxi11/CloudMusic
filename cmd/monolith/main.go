@@ -184,6 +184,7 @@ func main() {
 	mux.HandleFunc("/admin/api/session", adminH.Session)
 	mux.HandleFunc("/admin/api/users", adminH.ListUsers)
 	mux.HandleFunc("/admin/api/media", adminH.ListMedia)
+	mux.HandleFunc("/admin/api/media/by-artist", adminH.ListMediaByArtist)
 	mux.HandleFunc("/admin/api/media/delete", adminH.BatchDeleteMedia)
 	mux.HandleFunc("/admin/api/upload/song", adminH.UploadSong)
 

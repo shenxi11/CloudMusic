@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -100,6 +101,12 @@ type mediaDeleteResponse struct {
 	DeletedRows  int64    `json:"deleted_rows"`
 	DeletedFiles []string `json:"deleted_files"`
 	Warnings     []string `json:"warnings"`
+}
+
+type mediaArtistGroup struct {
+	Artist string      `json:"artist"`
+	Count  int         `json:"count"`
+	Items  []mediaItem `json:"items"`
 }
 
 type ffprobeFormat struct {
@@ -403,6 +410,85 @@ func (h *AdminHandler) ListMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, items)
+}
+
+func (h *AdminHandler) ListMediaByArtist(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 GET")
+		return
+	}
+	if _, ok := h.requireAdmin(w, r); !ok {
+		return
+	}
+
+	keyword := strings.TrimSpace(r.URL.Query().Get("keyword"))
+	limit := parsePositiveIntWithDefault(r.URL.Query().Get("limit"), 2000)
+	if limit > 8000 {
+		limit = 8000
+	}
+
+	conds := []string{"is_audio = 1"}
+	args := make([]any, 0, 6)
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		conds = append(conds, "(path LIKE ? OR title LIKE ? OR artist LIKE ? OR album LIKE ?)")
+		args = append(args, like, like, like, like)
+	}
+
+	query := fmt.Sprintf("SELECT path, title, artist, album, duration_sec, size_bytes, file_type, is_audio, COALESCE(lrc_path,''), COALESCE(cover_art_path,''), updated_at FROM %s WHERE %s ORDER BY artist ASC, updated_at DESC LIMIT ?", h.catalogMusicTable(), strings.Join(conds, " AND "))
+	args = append(args, limit)
+
+	rows, err := h.db.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		response.InternalServerError(w, "查询媒体失败")
+		return
+	}
+	defer rows.Close()
+
+	groupMap := make(map[string][]mediaItem, 128)
+	for rows.Next() {
+		var m mediaItem
+		var tiny int
+		var updated time.Time
+		if err := rows.Scan(&m.Path, &m.Title, &m.Artist, &m.Album, &m.DurationSec, &m.SizeBytes, &m.FileType, &tiny, &m.LrcPath, &m.CoverPath, &updated); err != nil {
+			response.InternalServerError(w, "读取媒体失败")
+			return
+		}
+		m.IsAudio = tiny == 1
+		m.UpdatedAt = updated.Format(time.RFC3339)
+
+		artistKey := strings.TrimSpace(m.Artist)
+		if artistKey == "" {
+			artistKey = "未标注歌手"
+			m.Artist = artistKey
+		}
+		groupMap[artistKey] = append(groupMap[artistKey], m)
+	}
+	if err := rows.Err(); err != nil {
+		response.InternalServerError(w, "读取媒体失败")
+		return
+	}
+
+	groups := make([]mediaArtistGroup, 0, len(groupMap))
+	for artist, items := range groupMap {
+		groups = append(groups, mediaArtistGroup{
+			Artist: artist,
+			Count:  len(items),
+			Items:  items,
+		})
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].Count != groups[j].Count {
+			return groups[i].Count > groups[j].Count
+		}
+		return groups[i].Artist < groups[j].Artist
+	})
+
+	response.Success(w, groups)
 }
 
 func (h *AdminHandler) BatchDeleteMedia(w http.ResponseWriter, r *http.Request) {
