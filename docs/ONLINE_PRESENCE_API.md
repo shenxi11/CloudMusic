@@ -1,6 +1,6 @@
 # 用户在线状态体系升级方案与接口文档
 
-更新时间：2026-03-03
+更新时间：2026-03-03（多会话并存版）
 
 ## 1. 背景与问题
 
@@ -18,9 +18,12 @@
 1. 定义在线会话 token（`session_token`），由服务端签发。
 2. 建立 Redis 三类 key：
    - `user:online:account:{account}`：最后在线时间戳（TTL）。
-   - `user:online:session:account:{account}`：account 当前会话 token（TTL）。
+   - `user:online:sessions:account:{account}`：account 的在线 token 集合（Set, TTL）。
    - `user:online:session:token:{token}`：token 反查 account（TTL）。
-3. 定义统一 TTL 与心跳建议间隔：
+3. 支持同账号多会话并存（例如同一账号在多个客户端/设备同时在线）：
+   - 新登录不会立即挤掉旧 token。
+   - 每个 token 独立续期、独立失效。
+4. 定义统一 TTL 与心跳建议间隔：
    - `online_ttl_sec = 600`
    - `heartbeat_interval_sec = 30`
 
@@ -50,6 +53,7 @@
 3. 启动心跳定时器：每 `online_heartbeat_interval_sec` 秒调用 `POST /users/online/heartbeat`
 4. 前台或关键点校验可用 `GET /users/online/status`
 5. 客户端退出/切换账号时调用 `POST /users/online/logout`
+6. 多设备场景下每个设备使用自己的 `session_token` 与心跳任务，不要互相覆盖本地 token。
 
 ## 4. 接口定义
 
@@ -114,6 +118,7 @@
 
 - 服务端会校验 token 与 account 的双向绑定。
 - 校验通过后刷新在线时间与 TTL。
+- 支持多 token 并存，不会因为同账号再次登录导致旧 token 立刻失效。
 
 ### 4.4 在线状态查询
 
@@ -172,6 +177,11 @@
 1. `401`（会话无效/过期）：跳转登录或重新创建在线会话。
 2. `404`（用户不存在）：提示账号异常，停止心跳。
 3. `400`（参数错误）：提示开发/请求参数问题，记录日志。
+
+补充建议：
+
+- 客户端每次成功登录后都要更新本地 token。
+- 若客户端允许多窗口/多实例，请将 token 与窗口实例绑定，避免覆盖。
 
 ## 6. 兼容接口说明
 

@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -233,11 +232,14 @@ func (s *userService) GetOnlineStatus(ctx context.Context, req *model.OnlineStat
 		}
 	}
 
-	ttlDur, err := rdb.TTL(cache.GetContext(), keyAccount).Result()
+	ttlDur, err := rdb.TTL(cache.GetContext(), onlineSessionTokenKey(token)).Result()
 	if err != nil {
 		return nil, fmt.Errorf("查询在线状态失败: %w", err)
 	}
-	ttlRemainingSec := int64(math.Max(0, ttlDur.Seconds()))
+	ttlRemainingSec := int64(ttlDur / time.Second)
+	if ttlRemainingSec < 0 {
+		ttlRemainingSec = 0
+	}
 
 	return &model.OnlineStatusResponse{
 		Account:              account,
@@ -269,13 +271,19 @@ func (s *userService) LogoutOnline(ctx context.Context, req *model.OnlineLogoutR
 	if rdb == nil {
 		return errors.New("redis 未初始化")
 	}
-	if err := rdb.Del(
-		cache.GetContext(),
-		onlineAccountKey(account),
-		onlineSessionAccountKey(account),
-		onlineSessionTokenKey(token),
-	).Err(); err != nil {
+	pipe := rdb.TxPipeline()
+	pipe.Del(cache.GetContext(), onlineSessionTokenKey(token))
+	pipe.SRem(cache.GetContext(), onlineSessionSetKey(account), token)
+	if _, err := pipe.Exec(cache.GetContext()); err != nil {
 		return fmt.Errorf("用户下线失败: %w", err)
+	}
+
+	active, err := s.hasAnyActiveSession(account)
+	if err != nil {
+		return fmt.Errorf("用户下线失败: %w", err)
+	}
+	if !active {
+		_ = rdb.Del(cache.GetContext(), onlineAccountKey(account), onlineSessionSetKey(account)).Err()
 	}
 	return nil
 }
@@ -373,8 +381,9 @@ func (s *userService) touchOnlineSession(account string, token string) (*model.O
 
 	pipe := rdb.TxPipeline()
 	pipe.Set(cache.GetContext(), onlineAccountKey(account), strconv.FormatInt(now, 10), defaultOnlineTTL)
-	pipe.Set(cache.GetContext(), onlineSessionAccountKey(account), token, defaultOnlineTTL)
 	pipe.Set(cache.GetContext(), onlineSessionTokenKey(token), account, defaultOnlineTTL)
+	pipe.SAdd(cache.GetContext(), onlineSessionSetKey(account), token)
+	pipe.Expire(cache.GetContext(), onlineSessionSetKey(account), defaultOnlineTTL)
 	if _, err := pipe.Exec(cache.GetContext()); err != nil {
 		return nil, fmt.Errorf("更新在线状态失败: %w", err)
 	}
@@ -395,17 +404,6 @@ func (s *userService) ensureSessionTokenMatch(ctx context.Context, account strin
 		return errors.New("redis 未初始化")
 	}
 
-	storedToken, err := rdb.Get(cache.GetContext(), onlineSessionAccountKey(account)).Result()
-	if err == redis.Nil {
-		return errors.New("在线会话不存在或已过期，请重新登录")
-	}
-	if err != nil {
-		return fmt.Errorf("校验在线会话失败: %w", err)
-	}
-	if storedToken != token {
-		return errors.New("在线会话无效，请重新登录")
-	}
-
 	storedAccount, err := rdb.Get(cache.GetContext(), onlineSessionTokenKey(token)).Result()
 	if err == redis.Nil {
 		return errors.New("在线会话不存在或已过期，请重新登录")
@@ -419,12 +417,55 @@ func (s *userService) ensureSessionTokenMatch(ctx context.Context, account strin
 	return nil
 }
 
+func (s *userService) hasAnyActiveSession(account string) (bool, error) {
+	rdb := cache.GetClient()
+	if rdb == nil {
+		return false, errors.New("redis 未初始化")
+	}
+
+	setKey := onlineSessionSetKey(account)
+	tokens, err := rdb.SMembers(cache.GetContext(), setKey).Result()
+	if err != nil {
+		return false, err
+	}
+	if len(tokens) == 0 {
+		return false, nil
+	}
+
+	pipe := rdb.Pipeline()
+	cmds := make(map[string]*redis.IntCmd, len(tokens))
+	for _, tk := range tokens {
+		cmds[tk] = pipe.Exists(cache.GetContext(), onlineSessionTokenKey(tk))
+	}
+	if _, err := pipe.Exec(cache.GetContext()); err != nil {
+		return false, err
+	}
+
+	stale := make([]interface{}, 0, len(tokens))
+	activeCount := 0
+	for tk, cmd := range cmds {
+		if cmd.Val() > 0 {
+			activeCount++
+		} else {
+			stale = append(stale, tk)
+		}
+	}
+	if len(stale) > 0 {
+		_ = rdb.SRem(cache.GetContext(), setKey, stale...).Err()
+	}
+	if activeCount > 0 {
+		_ = rdb.Expire(cache.GetContext(), setKey, defaultOnlineTTL).Err()
+		return true, nil
+	}
+	return false, nil
+}
+
 func onlineAccountKey(account string) string {
 	return cache.PrefixUser + "online:account:" + account
 }
 
-func onlineSessionAccountKey(account string) string {
-	return cache.PrefixUser + "online:session:account:" + account
+func onlineSessionSetKey(account string) string {
+	return cache.PrefixUser + "online:sessions:account:" + account
 }
 
 func onlineSessionTokenKey(token string) string {
