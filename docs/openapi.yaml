@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
   title: Music Platform Gateway API
-  version: "2026-02-26"
+  version: "2026-03-03"
   description: |
     Gateway API for the split architecture deployment.
     Base gateway: http://127.0.0.1:8080
-    Verified with live tests on 2026-02-26.
+    Verified with live tests on 2026-03-03.
 servers:
   - url: http://127.0.0.1:8080
     description: Local gateway
@@ -14,6 +14,7 @@ servers:
 
 tags:
   - name: system
+  - name: client
   - name: auth
   - name: catalog
   - name: profile
@@ -34,6 +35,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  /client/ping:
+    get:
+      tags: [client]
+      summary: Lightweight connectivity check for client startup
+      operationId: getClientPing
+      responses:
+        "200":
+          description: Ping success envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeClientPing"
+
+  /client/bootstrap:
+    get:
+      tags: [client]
+      summary: Client bootstrap info and service readiness
+      operationId: getClientBootstrap
+      responses:
+        "200":
+          description: Bootstrap success envelope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeClientBootstrap"
 
   /users/register:
     post:
@@ -825,6 +852,94 @@ components:
           type: integer
           format: int64
       required: [database, redis, status, timestamp]
+
+    EnvelopeClientPing:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/ClientPingData"
+      required: [code, message, data]
+
+    ClientPingData:
+      type: object
+      properties:
+        service:
+          type: string
+          example: cloudmusic-server
+        status:
+          type: string
+          example: ok
+        api_version:
+          type: string
+          example: "2026-03-03"
+        timestamp:
+          type: integer
+          format: int64
+        server_time:
+          type: string
+          example: "2026-03-03T10:00:00+08:00"
+      required: [service, status, api_version, timestamp, server_time]
+
+    EnvelopeClientBootstrap:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/ClientBootstrapData"
+      required: [code, message, data]
+
+    ClientBootstrapData:
+      type: object
+      properties:
+        service:
+          type: string
+          example: cloudmusic-server
+        api_version:
+          type: string
+          example: "2026-03-03"
+        ready:
+          type: boolean
+        timestamp:
+          type: integer
+          format: int64
+        server_time:
+          type: string
+          example: "2026-03-03T10:00:00+08:00"
+        public_base_url:
+          type: string
+          example: "http://127.0.0.1:8080"
+        checks:
+          type: object
+          properties:
+            database:
+              type: boolean
+            redis:
+              type: boolean
+          required: [database, redis]
+        endpoints:
+          type: object
+          properties:
+            ping:
+              type: string
+            bootstrap:
+              type: string
+            register:
+              type: string
+            login:
+              type: string
+          required: [ping, bootstrap, register, login]
+      required: [service, api_version, ready, timestamp, server_time, public_base_url, checks, endpoints]
 
     StatsResponse:
       type: object

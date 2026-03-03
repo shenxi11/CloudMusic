@@ -13,6 +13,7 @@ import (
 	artistHandler "music-platform/internal/artist/handler"
 	artistRepo "music-platform/internal/artist/repository"
 	artistService "music-platform/internal/artist/service"
+	clientHandler "music-platform/internal/client/handler"
 	"music-platform/internal/common/cache"
 	"music-platform/internal/common/config"
 	"music-platform/internal/common/database"
@@ -127,11 +128,14 @@ func main() {
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
 	adminH := adminHandler.NewAdminHandler(cfg, db)
+	connectH := clientHandler.NewConnectHandler(cfg)
 
 	// 9. 创建路由
 	mux := http.NewServeMux()
 
 	// 用户相关路由
+	mux.HandleFunc("/client/ping", connectH.Ping)
+	mux.HandleFunc("/client/bootstrap", connectH.Bootstrap)
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
 	mux.HandleFunc("/users/ping", userH.Ping)
@@ -314,6 +318,9 @@ func main() {
 	logger.Info("公共访问: %s", displayURL)
 	logger.Info("========================================")
 	logger.Info("可用路由:")
+	logger.Info("  客户端启动:")
+	logger.Info("    GET  /client/ping           - 服务器连通性检查")
+	logger.Info("    GET  /client/bootstrap      - 客户端引导信息")
 	logger.Info("  用户服务:")
 	logger.Info("    POST /users/register        - 用户注册")
 	logger.Info("    POST /users/login           - 用户登录")

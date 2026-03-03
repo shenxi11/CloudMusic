@@ -43,7 +43,9 @@ cd microservice-deploy
 ./scripts/docker.sh logs gateway
 
 # 5) 健康检查
-curl http://127.0.0.1:8080/users/health
+curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/client/ping
+curl http://127.0.0.1:8080/client/bootstrap
 curl http://127.0.0.1:8080/files
 curl http://127.0.0.1:8080/videos
 
@@ -139,6 +141,9 @@ Docker 模式（推荐）：
 ```bash
 # 网关 API OpenAPI 3.0 文档
 docs/openapi.yaml
+
+# 客户端启动连接接口文档
+docs/CLIENT_CONNECT_API.md
 
 # 启动 Swagger UI 预览（默认 http://127.0.0.1:18090/swagger-ui.html）
 ./scripts/openapi_preview.sh start
