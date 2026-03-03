@@ -145,6 +145,9 @@ docs/openapi.yaml
 # 客户端启动连接接口文档
 docs/CLIENT_CONNECT_API.md
 
+# 用户在线状态接口文档（会话+心跳+状态+下线）
+docs/ONLINE_PRESENCE_API.md
+
 # 启动 Swagger UI 预览（默认 http://127.0.0.1:18090/swagger-ui.html）
 ./scripts/openapi_preview.sh start
 

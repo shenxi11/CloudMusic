@@ -46,6 +46,10 @@ func main() {
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
 	mux.HandleFunc("/users/ping", userH.Ping)
+	mux.HandleFunc("/users/online/session/start", userH.OnlineSessionStart)
+	mux.HandleFunc("/users/online/heartbeat", userH.OnlineHeartbeat)
+	mux.HandleFunc("/users/online/status", userH.OnlineStatus)
+	mux.HandleFunc("/users/online/logout", userH.OnlineLogout)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
 			"service": "auth-service",

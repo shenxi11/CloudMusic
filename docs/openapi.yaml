@@ -16,6 +16,7 @@ tags:
   - name: system
   - name: client
   - name: auth
+  - name: presence
   - name: catalog
   - name: profile
   - name: media
@@ -120,6 +121,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
+
+  /users/ping:
+    post:
+      tags: [presence]
+      summary: Legacy online ping (compat, no session token check)
+      operationId: pingUserLegacy
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPingRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+
+  /users/online/session/start:
+    post:
+      tags: [presence]
+      summary: Start online session and issue session token
+      operationId: startOnlineSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnlineSessionStartRequest"
+      responses:
+        "200":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOnlineSession"
+
+  /users/online/heartbeat:
+    post:
+      tags: [presence]
+      summary: Heartbeat online session (requires session_token)
+      operationId: heartbeatOnlineSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnlineHeartbeatRequest"
+      responses:
+        "200":
+          description: Session renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOnlineSession"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /users/online/status:
+    get:
+      tags: [presence]
+      summary: Get current online status (requires session_token)
+      operationId: getOnlineStatus
+      parameters:
+        - in: query
+          name: account
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: username
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: session_token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Online status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOnlineStatus"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /users/online/logout:
+    post:
+      tags: [presence]
+      summary: Logout online session (requires session_token)
+      operationId: logoutOnlineSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnlineLogoutRequest"
+      responses:
+        "200":
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
 
   /files:
     get:
@@ -1031,7 +1143,119 @@ components:
           type: array
           items:
             type: string
+        online_session_token:
+          type: string
+        online_heartbeat_interval_sec:
+          type: integer
+        online_ttl_sec:
+          type: integer
       required: [success, success_bool, username, song_path_list]
+
+    UserPingRequest:
+      type: object
+      properties:
+        account:
+          type: string
+        username:
+          type: string
+
+    OnlineSessionStartRequest:
+      type: object
+      properties:
+        account:
+          type: string
+        username:
+          type: string
+        device_id:
+          type: string
+
+    OnlineHeartbeatRequest:
+      type: object
+      required: [session_token]
+      properties:
+        account:
+          type: string
+        username:
+          type: string
+        session_token:
+          type: string
+        device_id:
+          type: string
+
+    OnlineLogoutRequest:
+      type: object
+      required: [session_token]
+      properties:
+        account:
+          type: string
+        username:
+          type: string
+        session_token:
+          type: string
+
+    EnvelopeOnlineSession:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/OnlineSessionResponse"
+      required: [code, message, data]
+
+    OnlineSessionResponse:
+      type: object
+      properties:
+        account:
+          type: string
+        session_token:
+          type: string
+        heartbeat_interval_sec:
+          type: integer
+        online_ttl_sec:
+          type: integer
+        last_seen_at:
+          type: integer
+          format: int64
+        expire_at:
+          type: integer
+          format: int64
+      required: [account, session_token, heartbeat_interval_sec, online_ttl_sec, last_seen_at, expire_at]
+
+    EnvelopeOnlineStatus:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/OnlineStatusResponse"
+      required: [code, message, data]
+
+    OnlineStatusResponse:
+      type: object
+      properties:
+        account:
+          type: string
+        online:
+          type: boolean
+        last_seen_at:
+          type: integer
+          format: int64
+        ttl_remaining_sec:
+          type: integer
+          format: int64
+        heartbeat_interval_sec:
+          type: integer
+        online_ttl_sec:
+          type: integer
+      required: [account, online, last_seen_at, ttl_remaining_sec, heartbeat_interval_sec, online_ttl_sec]
 
     AddMusicRequest:
       type: object

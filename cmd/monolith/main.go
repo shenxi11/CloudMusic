@@ -139,6 +139,10 @@ func main() {
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
 	mux.HandleFunc("/users/ping", userH.Ping)
+	mux.HandleFunc("/users/online/session/start", userH.OnlineSessionStart)
+	mux.HandleFunc("/users/online/heartbeat", userH.OnlineHeartbeat)
+	mux.HandleFunc("/users/online/status", userH.OnlineStatus)
+	mux.HandleFunc("/users/online/logout", userH.OnlineLogout)
 	mux.HandleFunc("/users/add_music", userH.AddMusic)
 
 	// 音乐相关路由
@@ -324,6 +328,10 @@ func main() {
 	logger.Info("  用户服务:")
 	logger.Info("    POST /users/register        - 用户注册")
 	logger.Info("    POST /users/login           - 用户登录")
+	logger.Info("    POST /users/online/session/start - 创建在线会话")
+	logger.Info("    POST /users/online/heartbeat - 在线心跳")
+	logger.Info("    GET  /users/online/status   - 查询在线状态")
+	logger.Info("    POST /users/online/logout   - 主动下线")
 	logger.Info("    POST /users/add_music       - 添加收藏")
 	logger.Info("  音乐服务:")
 	logger.Info("    GET  /files                 - 获取音乐列表")

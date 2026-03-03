@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +15,13 @@ import (
 	"music-platform/internal/common/cache"
 	"music-platform/internal/user/model"
 	"music-platform/internal/user/repository"
+
+	"github.com/go-redis/redis/v8"
+)
+
+const (
+	defaultOnlineTTL          = 10 * time.Minute
+	defaultHeartbeatIntervalS = 30
 )
 
 // UserService 用户服务接口
@@ -20,6 +30,10 @@ type UserService interface {
 	Login(ctx context.Context, req *model.LoginRequest) (*model.LoginResponse, error)
 	AddMusic(ctx context.Context, req *model.AddMusicRequest) error
 	TouchOnline(ctx context.Context, req *model.UserPingRequest) error
+	StartOnlineSession(ctx context.Context, req *model.OnlineSessionStartRequest) (*model.OnlineSessionResponse, error)
+	HeartbeatOnline(ctx context.Context, req *model.OnlineHeartbeatRequest) (*model.OnlineSessionResponse, error)
+	GetOnlineStatus(ctx context.Context, req *model.OnlineStatusRequest) (*model.OnlineStatusResponse, error)
+	LogoutOnline(ctx context.Context, req *model.OnlineLogoutRequest) error
 }
 
 type userService struct {
@@ -122,7 +136,14 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 	response.Success = "true"
 	response.SuccessBool = true
 	response.Username = user.Username
-	s.markUserOnline(user.Account)
+	session, err := s.startOnlineSession(user.Account)
+	if err == nil && session != nil {
+		response.OnlineSessionToken = session.SessionToken
+		response.OnlineHeartbeatIntervalS = session.HeartbeatIntervalSec
+		response.OnlineTTLSec = session.OnlineTTLSec
+	} else {
+		s.markUserOnline(user.Account)
+	}
 
 	// 获取用户收藏的音乐
 	musicList, err := s.userMusicRepo.FindByUsername(ctx, user.Username)
@@ -142,20 +163,120 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 func (s *userService) TouchOnline(ctx context.Context, req *model.UserPingRequest) error {
 	account := strings.TrimSpace(req.Account)
 	if account == "" {
-		username := strings.TrimSpace(req.Username)
-		if username == "" {
-			return errors.New("account 或 username 至少提供一个")
-		}
-		user, err := s.userRepo.FindByUsername(ctx, username)
+		user, err := s.resolveUserByAccountOrUsername(ctx, "", req.Username)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return errors.New("用户不存在")
-			}
-			return fmt.Errorf("查询用户失败: %w", err)
+			return err
 		}
 		account = user.Account
 	}
 	s.markUserOnline(account)
+	return nil
+}
+
+// StartOnlineSession 创建在线会话（新客户端推荐）
+func (s *userService) StartOnlineSession(ctx context.Context, req *model.OnlineSessionStartRequest) (*model.OnlineSessionResponse, error) {
+	user, err := s.resolveUserByAccountOrUsername(ctx, req.Account, req.Username)
+	if err != nil {
+		return nil, err
+	}
+	return s.startOnlineSession(user.Account)
+}
+
+// HeartbeatOnline 在线心跳（需要会话 token）
+func (s *userService) HeartbeatOnline(ctx context.Context, req *model.OnlineHeartbeatRequest) (*model.OnlineSessionResponse, error) {
+	user, err := s.resolveUserByAccountOrUsername(ctx, req.Account, req.Username)
+	if err != nil {
+		return nil, err
+	}
+	account := user.Account
+	token := strings.TrimSpace(req.SessionToken)
+	if token == "" {
+		return nil, errors.New("session_token 不能为空")
+	}
+
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return nil, err
+	}
+	return s.touchOnlineSession(account, token)
+}
+
+// GetOnlineStatus 查询在线状态（需要会话 token）
+func (s *userService) GetOnlineStatus(ctx context.Context, req *model.OnlineStatusRequest) (*model.OnlineStatusResponse, error) {
+	user, err := s.resolveUserByAccountOrUsername(ctx, req.Account, req.Username)
+	if err != nil {
+		return nil, err
+	}
+	account := user.Account
+	token := strings.TrimSpace(req.SessionToken)
+	if token == "" {
+		return nil, errors.New("session_token 不能为空")
+	}
+
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return nil, err
+	}
+
+	rdb := cache.GetClient()
+	if rdb == nil {
+		return nil, errors.New("redis 未初始化")
+	}
+	keyAccount := onlineAccountKey(account)
+	raw, err := rdb.Get(cache.GetContext(), keyAccount).Result()
+	if err != nil && err != redis.Nil {
+		return nil, fmt.Errorf("查询在线状态失败: %w", err)
+	}
+
+	lastSeenAt := int64(0)
+	if raw != "" {
+		if ts, parseErr := strconv.ParseInt(raw, 10, 64); parseErr == nil {
+			lastSeenAt = ts
+		}
+	}
+
+	ttlDur, err := rdb.TTL(cache.GetContext(), keyAccount).Result()
+	if err != nil {
+		return nil, fmt.Errorf("查询在线状态失败: %w", err)
+	}
+	ttlRemainingSec := int64(math.Max(0, ttlDur.Seconds()))
+
+	return &model.OnlineStatusResponse{
+		Account:              account,
+		Online:               ttlRemainingSec > 0 && lastSeenAt > 0,
+		LastSeenAt:           lastSeenAt,
+		TTLRemainingSec:      ttlRemainingSec,
+		HeartbeatIntervalSec: defaultHeartbeatIntervalS,
+		OnlineTTLSec:         int(defaultOnlineTTL.Seconds()),
+	}, nil
+}
+
+// LogoutOnline 主动下线（需要会话 token）
+func (s *userService) LogoutOnline(ctx context.Context, req *model.OnlineLogoutRequest) error {
+	user, err := s.resolveUserByAccountOrUsername(ctx, req.Account, req.Username)
+	if err != nil {
+		return err
+	}
+	account := user.Account
+	token := strings.TrimSpace(req.SessionToken)
+	if token == "" {
+		return errors.New("session_token 不能为空")
+	}
+
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return err
+	}
+
+	rdb := cache.GetClient()
+	if rdb == nil {
+		return errors.New("redis 未初始化")
+	}
+	if err := rdb.Del(
+		cache.GetContext(),
+		onlineAccountKey(account),
+		onlineSessionAccountKey(account),
+		onlineSessionTokenKey(token),
+	).Err(); err != nil {
+		return fmt.Errorf("用户下线失败: %w", err)
+	}
 	return nil
 }
 
@@ -196,7 +317,124 @@ func (s *userService) markUserOnline(account string) {
 	if account == "" {
 		return
 	}
-	key := cache.PrefixUser + "online:account:" + account
-	ttl := 10 * time.Minute
-	_ = cache.Set(key, strconv.FormatInt(time.Now().Unix(), 10), ttl)
+	key := onlineAccountKey(account)
+	_ = cache.Set(key, strconv.FormatInt(time.Now().Unix(), 10), defaultOnlineTTL)
+}
+
+func (s *userService) resolveUserByAccountOrUsername(ctx context.Context, account string, username string) (*model.User, error) {
+	account = strings.TrimSpace(account)
+	username = strings.TrimSpace(username)
+	if account == "" && username == "" {
+		return nil, errors.New("account 或 username 至少提供一个")
+	}
+
+	if account != "" {
+		user, err := s.userRepo.FindByAccount(ctx, account)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, errors.New("用户不存在")
+			}
+			return nil, fmt.Errorf("查询用户失败: %w", err)
+		}
+		return user, nil
+	}
+
+	user, err := s.userRepo.FindByUsername(ctx, username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("用户不存在")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+	return user, nil
+}
+
+func (s *userService) startOnlineSession(account string) (*model.OnlineSessionResponse, error) {
+	token, err := generateSessionToken()
+	if err != nil {
+		return nil, fmt.Errorf("创建在线会话失败: %w", err)
+	}
+	return s.touchOnlineSession(account, token)
+}
+
+func (s *userService) touchOnlineSession(account string, token string) (*model.OnlineSessionResponse, error) {
+	account = strings.TrimSpace(account)
+	token = strings.TrimSpace(token)
+	if account == "" || token == "" {
+		return nil, errors.New("account 或 session_token 不能为空")
+	}
+
+	now := time.Now().Unix()
+	expireAt := now + int64(defaultOnlineTTL.Seconds())
+	rdb := cache.GetClient()
+	if rdb == nil {
+		return nil, errors.New("redis 未初始化")
+	}
+
+	pipe := rdb.TxPipeline()
+	pipe.Set(cache.GetContext(), onlineAccountKey(account), strconv.FormatInt(now, 10), defaultOnlineTTL)
+	pipe.Set(cache.GetContext(), onlineSessionAccountKey(account), token, defaultOnlineTTL)
+	pipe.Set(cache.GetContext(), onlineSessionTokenKey(token), account, defaultOnlineTTL)
+	if _, err := pipe.Exec(cache.GetContext()); err != nil {
+		return nil, fmt.Errorf("更新在线状态失败: %w", err)
+	}
+
+	return &model.OnlineSessionResponse{
+		Account:              account,
+		SessionToken:         token,
+		HeartbeatIntervalSec: defaultHeartbeatIntervalS,
+		OnlineTTLSec:         int(defaultOnlineTTL.Seconds()),
+		LastSeenAt:           now,
+		ExpireAt:             expireAt,
+	}, nil
+}
+
+func (s *userService) ensureSessionTokenMatch(ctx context.Context, account string, token string) error {
+	rdb := cache.GetClient()
+	if rdb == nil {
+		return errors.New("redis 未初始化")
+	}
+
+	storedToken, err := rdb.Get(cache.GetContext(), onlineSessionAccountKey(account)).Result()
+	if err == redis.Nil {
+		return errors.New("在线会话不存在或已过期，请重新登录")
+	}
+	if err != nil {
+		return fmt.Errorf("校验在线会话失败: %w", err)
+	}
+	if storedToken != token {
+		return errors.New("在线会话无效，请重新登录")
+	}
+
+	storedAccount, err := rdb.Get(cache.GetContext(), onlineSessionTokenKey(token)).Result()
+	if err == redis.Nil {
+		return errors.New("在线会话不存在或已过期，请重新登录")
+	}
+	if err != nil {
+		return fmt.Errorf("校验在线会话失败: %w", err)
+	}
+	if storedAccount != account {
+		return errors.New("在线会话无效，请重新登录")
+	}
+	return nil
+}
+
+func onlineAccountKey(account string) string {
+	return cache.PrefixUser + "online:account:" + account
+}
+
+func onlineSessionAccountKey(account string) string {
+	return cache.PrefixUser + "online:session:account:" + account
+}
+
+func onlineSessionTokenKey(token string) string {
+	return cache.PrefixUser + "online:session:token:" + token
+}
+
+func generateSessionToken() (string, error) {
+	b := make([]byte, 24)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

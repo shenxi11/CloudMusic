@@ -134,3 +134,114 @@ func (h *UserHandler) Ping(w http.ResponseWriter, r *http.Request) {
 	}
 	response.Success(w, map[string]bool{"success": true})
 }
+
+// OnlineSessionStart 创建在线会话（新客户端推荐）
+func (h *UserHandler) OnlineSessionStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	var req model.OnlineSessionStartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "请求参数错误")
+		return
+	}
+
+	session, err := h.userService.StartOnlineSession(r.Context(), &req)
+	if err != nil {
+		writeOnlineError(w, err)
+		return
+	}
+	response.Success(w, session)
+}
+
+// OnlineHeartbeat 在线心跳（需要 session_token）
+func (h *UserHandler) OnlineHeartbeat(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	var req model.OnlineHeartbeatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "请求参数错误")
+		return
+	}
+
+	session, err := h.userService.HeartbeatOnline(r.Context(), &req)
+	if err != nil {
+		writeOnlineError(w, err)
+		return
+	}
+	response.Success(w, session)
+}
+
+// OnlineStatus 查询在线状态（需要 session_token）
+func (h *UserHandler) OnlineStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 GET")
+		return
+	}
+
+	req := model.OnlineStatusRequest{
+		Account:      r.URL.Query().Get("account"),
+		Username:     r.URL.Query().Get("username"),
+		SessionToken: r.URL.Query().Get("session_token"),
+	}
+	status, err := h.userService.GetOnlineStatus(r.Context(), &req)
+	if err != nil {
+		writeOnlineError(w, err)
+		return
+	}
+	response.Success(w, status)
+}
+
+// OnlineLogout 主动下线（需要 session_token）
+func (h *UserHandler) OnlineLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	var req model.OnlineLogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "请求参数错误")
+		return
+	}
+
+	if err := h.userService.LogoutOnline(r.Context(), &req); err != nil {
+		writeOnlineError(w, err)
+		return
+	}
+	response.Success(w, map[string]bool{"success": true})
+}
+
+func writeOnlineError(w http.ResponseWriter, err error) {
+	msg := err.Error()
+	if strings.Contains(msg, "会话") || strings.Contains(msg, "token") {
+		response.Unauthorized(w, msg)
+		return
+	}
+	if strings.Contains(msg, "用户不存在") {
+		response.NotFound(w, msg)
+		return
+	}
+	response.BadRequest(w, msg)
+}
