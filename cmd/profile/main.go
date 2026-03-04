@@ -16,6 +16,9 @@ import (
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/middleware"
 	"music-platform/internal/common/outbox"
+	recommendHandler "music-platform/internal/recommend/handler"
+	recommendRepo "music-platform/internal/recommend/repository"
+	recommendService "music-platform/internal/recommend/service"
 	usermusicHandler "music-platform/internal/usermusic/handler"
 	usermusicRepo "music-platform/internal/usermusic/repository"
 	usermusicService "music-platform/internal/usermusic/service"
@@ -65,6 +68,10 @@ func main() {
 	if err := usermusicRepository.EnsureTables(); err != nil {
 		logger.Fatal("初始化用户行为表失败: %v", err)
 	}
+	recommendRepository := recommendRepo.NewRecommendRepository(db, profileSchema, catalogSchema)
+	if err := recommendRepository.EnsureTables(); err != nil {
+		logger.Fatal("初始化推荐数据表失败: %v", err)
+	}
 	logger.Info("用户行为数据 schema: profile=%s, catalog=%s", profileSchema, catalogSchema)
 	outboxStore := outbox.NewStore(db)
 	if err := outboxStore.EnsureTable(); err != nil {
@@ -82,6 +89,7 @@ func main() {
 	}
 
 	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, publisher, outboxStore)
+	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 
 	if publisher != nil && outboxStore != nil {
 		pollInterval := time.Duration(defaultInt(cfg.Event.Outbox.PollIntervalMs, 2000)) * time.Millisecond
@@ -93,6 +101,7 @@ func main() {
 	}
 
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
+	recommendH := recommendHandler.NewRecommendHandler(recommendSvc)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user/favorites/add", usermusicH.AddFavorite)
@@ -102,6 +111,11 @@ func main() {
 	mux.HandleFunc("/user/history/delete", usermusicH.DeletePlayHistory)
 	mux.HandleFunc("/user/history/clear", usermusicH.ClearPlayHistory)
 	mux.HandleFunc("/user/history", usermusicH.ListPlayHistory)
+	mux.HandleFunc("/recommendations/audio", recommendH.GetRecommendations)
+	mux.HandleFunc("/recommendations/similar/", recommendH.GetSimilar)
+	mux.HandleFunc("/recommendations/feedback", recommendH.PostFeedback)
+	mux.HandleFunc("/admin/recommend/retrain", recommendH.TriggerRetrain)
+	mux.HandleFunc("/admin/recommend/model-status", recommendH.ModelStatus)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
 			"service": "profile-service",

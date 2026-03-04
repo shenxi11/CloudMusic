@@ -8,6 +8,8 @@
 /event_worker
 /migrator
 /cmd/monolith/music-server-v2
+/monolith
+/profile
 
 # Runtime / logs
 *.log

@@ -1,11 +1,11 @@
 openapi: 3.0.3
 info:
   title: Music Platform Gateway API
-  version: "2026-03-03"
+  version: "2026-03-04"
   description: |
     Gateway API for the split architecture deployment.
     Base gateway: http://127.0.0.1:8080
-    Verified with live tests on 2026-03-03.
+    Verified with live tests on 2026-03-04.
 servers:
   - url: http://127.0.0.1:8080
     description: Local gateway
@@ -19,6 +19,7 @@ tags:
   - name: presence
   - name: catalog
   - name: profile
+  - name: recommendation
   - name: media
   - name: video
   - name: compatibility
@@ -603,6 +604,164 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteActionResponse"
+
+  /recommendations/audio:
+    get:
+      tags: [recommendation]
+      summary: Get personalized audio recommendations
+      operationId: getAudioRecommendations
+      parameters:
+        - in: query
+          name: user_id
+          required: false
+          schema:
+            type: string
+          description: 推荐用户 ID；可替代使用 user_account / X-User-Account
+        - in: query
+          name: user_account
+          required: false
+          schema:
+            type: string
+        - in: header
+          name: X-User-Account
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: scene
+          required: false
+          schema:
+            type: string
+            enum: [home, radio, detail]
+            default: home
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: exclude_played
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recommendation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRecommendationList"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /recommendations/similar/{song_id}:
+    get:
+      tags: [recommendation]
+      summary: Get similar songs by anchor song
+      operationId: getSimilarRecommendations
+      parameters:
+        - in: path
+          name: song_id
+          required: true
+          schema:
+            type: string
+          description: 建议使用 URL Path Encode 后传入
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Similar recommendation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeRecommendationList"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /recommendations/feedback:
+    post:
+      tags: [recommendation]
+      summary: Report recommendation feedback
+      operationId: postRecommendationFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationFeedbackRequest"
+            example:
+              user_id: "10001"
+              song_id: "jay/七里香.mp3"
+              event_type: "play"
+              play_ms: 32000
+              duration_ms: 240000
+              scene: "home"
+              request_id: "rec_abc123"
+              model_version: "rule_hybrid_v1"
+              event_at: "2026-03-04T10:00:00+08:00"
+      responses:
+        "200":
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSuccessBool"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /admin/recommend/retrain:
+    post:
+      tags: [recommendation]
+      summary: Trigger recommendation retrain task
+      operationId: triggerRecommendationRetrain
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationRetrainRequest"
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTaskAccepted"
+
+  /admin/recommend/model-status:
+    get:
+      tags: [recommendation]
+      summary: Get recommendation model status
+      operationId: getRecommendationModelStatus
+      parameters:
+        - in: query
+          name: model_name
+          required: false
+          schema:
+            type: string
+            default: rule_hybrid
+      responses:
+        "200":
+          description: Model status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeModelStatus"
 
   /upload:
     post:
@@ -1256,6 +1415,161 @@ components:
         online_ttl_sec:
           type: integer
       required: [account, online, last_seen_at, ttl_remaining_sec, heartbeat_interval_sec, online_ttl_sec]
+
+    EnvelopeRecommendationList:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/RecommendationListData"
+      required: [code, message, data]
+
+    RecommendationListData:
+      type: object
+      properties:
+        request_id:
+          type: string
+        user_id:
+          type: string
+        scene:
+          type: string
+        model_version:
+          type: string
+        next_cursor:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecommendationItem"
+      required: [request_id, user_id, scene, model_version, items]
+
+    RecommendationItem:
+      type: object
+      properties:
+        song_id:
+          type: string
+        path:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration_sec:
+          type: number
+          format: double
+        cover_art_url:
+          type: string
+          nullable: true
+        stream_url:
+          type: string
+        lrc_url:
+          type: string
+          nullable: true
+        score:
+          type: number
+          format: double
+        reason:
+          type: string
+        source:
+          type: string
+          enum: [cf, content, hot, hybrid]
+      required: [song_id, path, title, artist, stream_url, score, reason, source]
+
+    RecommendationFeedbackRequest:
+      type: object
+      required: [user_id, song_id, event_type]
+      properties:
+        user_id:
+          type: string
+        song_id:
+          type: string
+        event_type:
+          type: string
+          enum: [impression, click, play, finish, like, skip, share, dislike]
+        play_ms:
+          type: integer
+          format: int64
+        duration_ms:
+          type: integer
+          format: int64
+        scene:
+          type: string
+          enum: [home, radio, detail]
+        request_id:
+          type: string
+        model_version:
+          type: string
+        event_at:
+          type: string
+          format: date-time
+
+    RecommendationRetrainRequest:
+      type: object
+      properties:
+        model_name:
+          type: string
+          default: rule_hybrid
+        force_full:
+          type: boolean
+          default: false
+
+    EnvelopeTaskAccepted:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: accepted
+        data:
+          type: object
+          properties:
+            task_id:
+              type: string
+            status:
+              type: string
+              example: queued
+          required: [task_id, status]
+      required: [code, message, data]
+
+    EnvelopeModelStatus:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/RecommendationModelStatus"
+      required: [code, message, data]
+
+    RecommendationModelStatus:
+      type: object
+      properties:
+        model_name:
+          type: string
+        model_version:
+          type: string
+        status:
+          type: string
+        trained_at:
+          type: string
+          format: date-time
+          nullable: true
+        metrics:
+          type: object
+          additionalProperties: true
+      required: [model_name, model_version, status]
 
     AddMusicRequest:
       type: object

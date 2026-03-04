@@ -1,89 +1,244 @@
-# 音频推荐接口与算法落地草案
+# 推荐接口对接文档（已落地）
 
-更新时间：2026-03-03
+更新时间：2026-03-04  
+适用版本：`main` 分支（已实现）
 
-## 1. 目标
+## 1. 总览
 
-为客户端提供“按用户听歌偏好推荐音频”的能力，并保持对现有网关接口兼容，不影响登录、注册、播放等现有流程。
+本次服务端已落地推荐能力，接口由网关统一暴露，核心包括：
 
-## 2. 接口草案
+1. 个性化推荐列表
+2. 相似歌曲推荐
+3. 推荐反馈上报
+4. 推荐模型状态查询
+5. 触发重训任务（管理侧）
 
-完整 OpenAPI 草案见：
+基础地址（示例）：
 
-- `docs/recommendation-openapi.yaml`
+- `http://127.0.0.1:8080`
 
-核心接口：
+响应包络统一格式：
 
-1. `GET /recommendations/audio`：按用户个性化推荐歌曲列表
-2. `GET /recommendations/similar/{song_id}`：基于当前歌曲找相似歌曲
-3. `POST /recommendations/feedback`：上报曝光/点击/播放/喜欢/跳过等反馈
-4. `POST /admin/recommend/retrain`：管理员触发模型重训
-5. `GET /admin/recommend/model-status`：查看当前模型版本与状态
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {}
+}
+```
 
-## 3. 数据结构草案
+## 2. 客户端接入时序（推荐）
 
-可执行 SQL 草案见：
+1. 登录成功后拿到 `user_account`（或你客户端自己的 `user_id`）
+2. 拉取推荐列表：`GET /recommendations/audio`
+3. 展示后记录 `request_id`
+4. 用户播放/喜欢/跳过时，上报 `POST /recommendations/feedback`
+5. 歌曲详情页调用 `GET /recommendations/similar/{song_id}`
 
-- `docs/RECOMMENDATION_SCHEMA.sql`
+## 3. 接口明细
+
+## 3.1 获取个性化推荐
+
+- 方法：`GET`
+- 路径：`/recommendations/audio`
+
+参数：
+
+- `user_id`（推荐，query）
+- `user_account`（兼容，query）
+- `X-User-Account`（兼容，header）
+- `scene`（可选：`home`/`radio`/`detail`，默认 `home`）
+- `limit`（可选，默认 `20`，最大 `100`）
+- `exclude_played`（可选，默认 `true`）
+- `cursor`（保留参数，当前可传空）
+
+成功响应示例：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "request_id": "rec_f0f7d57e31f8e3f2f8a1",
+    "user_id": "10001",
+    "scene": "home",
+    "model_version": "rule_hybrid_v1",
+    "items": [
+      {
+        "song_id": "jay/七里香.mp3",
+        "path": "jay/七里香.mp3",
+        "title": "七里香",
+        "artist": "周杰伦",
+        "album": "七里香",
+        "duration_sec": 294.2,
+        "cover_art_url": "http://127.0.0.1:8080/uploads/jay/%E4%B8%83%E9%87%8C%E9%A6%99.jpg",
+        "stream_url": "http://127.0.0.1:8080/uploads/jay/%E4%B8%83%E9%87%8C%E9%A6%99.mp3",
+        "lrc_url": "http://127.0.0.1:8080/uploads/jay/%E4%B8%83%E9%87%8C%E9%A6%99.lrc",
+        "score": 0.9231,
+        "reason": "based_on_play_history",
+        "source": "cf"
+      }
+    ]
+  }
+}
+```
+
+失败场景：
+
+- `400`：缺少 `user_id`
+
+## 3.2 获取相似歌曲推荐
+
+- 方法：`GET`
+- 路径：`/recommendations/similar/{song_id}`
+
+说明：
+
+- `song_id` 建议做 URL Path Encode（尤其包含中文或空格时）
+- `limit` 可选，默认 `20`
+
+示例：
+
+```bash
+curl "http://127.0.0.1:8080/recommendations/similar/jay%2F%E4%B8%83%E9%87%8C%E9%A6%99.mp3?limit=10"
+```
+
+失败场景：
+
+- `404`：锚点歌曲不存在
+
+## 3.3 上报推荐反馈
+
+- 方法：`POST`
+- 路径：`/recommendations/feedback`
+
+请求体：
+
+- `user_id`（必填，若 body 不传可走 `X-User-Account` 兜底）
+- `song_id`（必填）
+- `event_type`（必填）：`impression|click|play|finish|like|skip|share|dislike`
+- `play_ms`（可选）
+- `duration_ms`（可选）
+- `scene`（可选，默认 `home`）
+- `request_id`（建议传）
+- `model_version`（建议传）
+- `event_at`（可选，RFC3339；不传使用服务端时间）
+
+请求示例：
+
+```json
+{
+  "user_id": "10001",
+  "song_id": "jay/七里香.mp3",
+  "event_type": "play",
+  "play_ms": 35000,
+  "duration_ms": 294000,
+  "scene": "home",
+  "request_id": "rec_f0f7d57e31f8e3f2f8a1",
+  "model_version": "rule_hybrid_v1"
+}
+```
+
+成功响应：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "success": true
+  }
+}
+```
+
+## 3.4 触发重训任务（管理）
+
+- 方法：`POST`
+- 路径：`/admin/recommend/retrain`
+- 状态码：`202 Accepted`
+
+请求体：
+
+- `model_name`（可选，默认 `rule_hybrid`）
+- `force_full`（可选，默认 `false`）
+
+响应示例：
+
+```json
+{
+  "code": 0,
+  "message": "accepted",
+  "data": {
+    "task_id": "rec_task_1772600123456789000",
+    "status": "queued"
+  }
+}
+```
+
+## 3.5 查询模型状态（管理）
+
+- 方法：`GET`
+- 路径：`/admin/recommend/model-status`
+- 参数：`model_name`（可选，默认 `rule_hybrid`）
+
+响应示例：
+
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "model_name": "rule_hybrid",
+    "model_version": "rule_hybrid_20260304_101530",
+    "status": "ready",
+    "trained_at": "2026-03-04T10:15:30+08:00",
+    "metrics": {
+      "algo": "rule_hybrid",
+      "refreshed": true
+    }
+  }
+}
+```
+
+## 4. 当前推荐策略（已实现）
+
+当前是可运行的 `rule_hybrid` 策略（无外部模型依赖）：
+
+1. 用户偏好信号：
+   - 播放历史（按歌曲/歌手聚合）
+   - 喜欢列表（加权增强）
+2. 全局热度信号：
+   - 全站播放历史聚合热度
+3. 反馈修正信号：
+   - `like/finish/play` 提升
+   - `skip/dislike` 降权
+4. 融合打分：
+   - `score = 0.55*cf + 0.30*content + 0.15*hot + adjust`
+
+返回 `reason/source` 字段给客户端用于解释展示。
+
+## 5. 数据表（已落地）
+
+迁移脚本：
+
+- `migrations/sql/20260304_profile_recommendation_core.sql`
 
 核心表：
 
-1. `music_recommend.user_events`：行为事件日志（play/like/skip 等）
-2. `music_recommend.song_features`：歌曲特征与向量
-3. `music_recommend.user_profile_features`：用户画像与偏好向量
-4. `music_recommend.similar_song_index`：歌曲相似索引
-5. `music_recommend.recommendation_cache`：推荐结果缓存
-6. `music_recommend.model_versions`：模型版本与指标
-7. `music_recommend.training_jobs`：训练任务状态
+1. `user_recommendation_feedback`
+2. `recommendation_model_status`
+3. `recommendation_training_jobs`
 
-## 4. 推荐算法建议（开源优先）
+## 6. 对客户端改造建议
 
-### 4.1 第一阶段（快速上线）
+1. 推荐页首屏调用：`/recommendations/audio`
+2. 卡片曝光、点击、播放、跳过、喜欢都上报 `/recommendations/feedback`
+3. 详情页“相似推荐”调用 `/recommendations/similar/{song_id}`
+4. 保留 `request_id + model_version` 在埋点中回传，便于效果分析与回溯
 
-1. 协同过滤召回：`implicit`（ALS/BPR）
-2. 内容召回：歌曲特征相似度（余弦相似度）
-3. 热门兜底：近 7 天高完播、高收藏歌曲
-4. 混合打分：`score = 0.55*cf + 0.30*content + 0.15*hot`
+## 7. 联调检查清单
 
-### 4.2 第二阶段（效果提升）
-
-1. 引入 `LightFM`：将协同信息和内容特征一起建模
-2. 使用 `faiss` / `hnswlib` 做向量近邻召回
-3. 训练轻量排序模型（XGBoost/LightGBM）做精排
-
-### 4.3 可选算法框架
-
-1. `RecBole`：快速验证多种推荐模型
-2. `TensorFlow Recommenders`：深度推荐路线
-3. 音频特征提取：`librosa`、`Essentia`
-
-## 5. 客户端接入时序
-
-1. 客户端请求 `GET /recommendations/audio`
-2. 客户端展示推荐列表并携带 `request_id`
-3. 客户端在播放/喜欢/跳过时调用 `POST /recommendations/feedback`
-4. 服务端离线任务定时训练（建议每日一次）
-5. 模型切换后通过 `model_version` 灰度验证
-
-## 6. 关键工程策略
-
-1. 冷启动：新用户优先热门+内容相似，不依赖历史行为
-2. 去重：同歌手过多时做配额限制，提升多样性
-3. 新鲜度：增加新歌探索权重，避免推荐长期固化
-4. 可解释性：每首推荐返回 `reason/source` 便于客户端展示
-5. 可回滚：模型版本化，异常时一键切回旧模型
-
-## 7. 上线验收指标
-
-1. `CTR@20`：推荐位点击率
-2. `PlayRate@20`：推荐歌曲播放率
-3. `FinishRate`：完播率
-4. `LikeRate`：收藏/喜欢率
-5. `Diversity`：歌手/曲风多样性指标
-
-## 8. 实施顺序建议
-
-1. 先落地 `feedback` 事件采集
-2. 上线 ALS + 热门兜底版本（MVP）
-3. 增加内容特征召回与向量检索
-4. 增加精排模型与 A/B 实验
+1. 用户登录后 `user_id` 传递是否稳定
+2. `song_id` 是否与服务端 `music_files.path` 一致（路径大小写、编码）
+3. URL Path Encode 是否正确处理中文与空格
+4. 反馈事件是否覆盖至少 `play/finish/skip/like`

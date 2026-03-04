@@ -23,6 +23,9 @@ import (
 	musicHandler "music-platform/internal/music/handler"
 	musicRepo "music-platform/internal/music/repository"
 	musicService "music-platform/internal/music/service"
+	recommendHandler "music-platform/internal/recommend/handler"
+	recommendRepo "music-platform/internal/recommend/repository"
+	recommendService "music-platform/internal/recommend/service"
 	userHandler "music-platform/internal/user/handler"
 	userRepo "music-platform/internal/user/repository"
 	userService "music-platform/internal/user/service"
@@ -82,6 +85,10 @@ func main() {
 	if err := usermusicRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化用户行为表失败，将继续启动: %v", err)
 	}
+	recommendRepository := recommendRepo.NewRecommendRepository(db, profileSchema, catalogSchema)
+	if err := recommendRepository.EnsureTables(); err != nil {
+		logger.Warn("初始化推荐数据表失败，将继续启动: %v", err)
+	}
 
 	// 7. 初始化服务层
 	userSvc := userService.NewUserService(userRepository, userMusicRepository)
@@ -116,6 +123,7 @@ func main() {
 	}
 
 	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil)
+	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 	userH := userHandler.NewUserHandler(userSvc)
 	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
 	mediaH := handler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema)
@@ -127,6 +135,7 @@ func main() {
 	videoH := videoHandler.NewVideoHandler(videoSvc, baseURL)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
+	recommendH := recommendHandler.NewRecommendHandler(recommendSvc)
 	adminH := adminHandler.NewAdminHandler(cfg, db)
 	connectH := clientHandler.NewConnectHandler(cfg)
 
@@ -164,6 +173,11 @@ func main() {
 	mux.HandleFunc("/user/history/delete", usermusicH.DeletePlayHistory) // 删除播放历史（批量）
 	mux.HandleFunc("/user/history/clear", usermusicH.ClearPlayHistory)   // 清空播放历史
 	mux.HandleFunc("/user/history", usermusicH.ListPlayHistory)          // 播放历史
+	mux.HandleFunc("/recommendations/audio", recommendH.GetRecommendations)
+	mux.HandleFunc("/recommendations/similar/", recommendH.GetSimilar)
+	mux.HandleFunc("/recommendations/feedback", recommendH.PostFeedback)
+	mux.HandleFunc("/admin/recommend/retrain", recommendH.TriggerRetrain)
+	mux.HandleFunc("/admin/recommend/model-status", recommendH.ModelStatus)
 
 	// 视频相关路由
 	mux.HandleFunc("/videos", videoH.GetVideoList)
@@ -346,6 +360,12 @@ func main() {
 	logger.Info("    GET  /videos                - 获取视频列表")
 	logger.Info("    POST /video/stream          - 获取视频流URL")
 	logger.Info("    GET  /video/<path>          - 视频文件服务")
+	logger.Info("  推荐服务:")
+	logger.Info("    GET  /recommendations/audio - 个性化推荐")
+	logger.Info("    GET  /recommendations/similar/<song_id> - 相似歌曲推荐")
+	logger.Info("    POST /recommendations/feedback - 推荐反馈上报")
+	logger.Info("    POST /admin/recommend/retrain - 触发模型重训")
+	logger.Info("    GET  /admin/recommend/model-status - 查询模型状态")
 	logger.Info("  媒体服务:")
 	logger.Info("    GET  /uploads/<path>        - 流媒体传输")
 	logger.Info("    GET  /uploads/<folder>/lrc  - 获取歌词")
