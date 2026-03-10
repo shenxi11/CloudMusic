@@ -444,31 +444,237 @@ th {
   font-weight: 700;
 }
 
-@media (max-width: 1024px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+@media (max-width: 1200px) {
+  .app-shell.is-desktop {
+    grid-template-columns: 240px 1fr;
   }
 
-  .side-nav {
-    position: relative;
+  .app-shell.is-desktop .player-bar {
+    grid-template-columns: 240px 1fr auto;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell.is-mobile {
+    grid-template-columns: 1fr;
+    padding-bottom: 182px;
+  }
+
+  .is-mobile .side-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     height: auto;
-    grid-template-rows: auto auto auto auto;
+    border-right: none;
+    border-bottom: 1px solid #31415f;
+    padding: 12px 12px 10px;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand footer"
+      "user user"
+      "search search";
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+    background: linear-gradient(180deg, rgba(18, 26, 42, 0.95), rgba(15, 23, 38, 0.95));
+    backdrop-filter: blur(8px);
   }
 
-  .player-bar {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 10px;
+  .is-mobile .brand {
+    grid-area: brand;
+    font-size: 20px;
   }
 
-  .player-actions {
+  .is-mobile .user-box {
+    grid-area: user;
+    padding: 8px 10px;
+  }
+
+  .is-mobile .user-box p {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .is-mobile .search-inline {
+    grid-area: search;
+  }
+
+  .is-mobile .side-footer {
+    grid-area: footer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     justify-content: flex-end;
   }
 
-  .lyrics-panel {
-    right: 10px;
-    left: 10px;
+  .is-mobile .side-footer button {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .is-mobile .main-panel {
+    padding: 12px 12px 8px;
+  }
+
+  .is-mobile .main-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .is-mobile .main-header h2 {
+    font-size: 20px;
+  }
+
+  .is-mobile .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .is-mobile .media-card {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .is-mobile .media-card h3 {
+    font-size: 14px;
+  }
+
+  .is-mobile .media-card p,
+  .is-mobile .meta {
+    font-size: 12px;
+  }
+
+  .is-mobile .table-wrap {
+    border-radius: 12px;
+  }
+
+  .is-mobile th,
+  .is-mobile td {
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+
+  .is-mobile .nav-list {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 52;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 8px 10px;
+    border-top: 1px solid #3a4a6a;
+    background: linear-gradient(180deg, rgba(13, 20, 34, 0.95), rgba(10, 16, 28, 0.98));
+    backdrop-filter: blur(10px);
+  }
+
+  .is-mobile .nav-list button {
+    padding: 8px 4px;
+    font-size: 12px;
+    text-align: center;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+  }
+
+  .is-mobile .nav-list button.active {
+    background: #f7e9eb;
+    border-color: #f7e9eb;
+    color: #8b0f1e;
+  }
+
+  .player-bar.mobile-player {
+    bottom: 62px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .player-bar.mobile-player .track-meta {
+    gap: 1px;
+  }
+
+  .player-bar.mobile-player .track-meta strong {
+    font-size: 13px;
+  }
+
+  .player-bar.mobile-player .track-meta span,
+  .player-bar.mobile-player .track-meta small {
+    font-size: 11px;
+  }
+
+  .player-bar.mobile-player audio {
+    height: 32px;
+  }
+
+  .player-bar.mobile-player .player-actions {
+    justify-content: flex-start;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .player-bar.mobile-player .player-actions button {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .is-mobile .lyrics-panel {
+    left: 8px;
+    right: 8px;
     width: auto;
-    bottom: 170px;
+    bottom: 132px;
+    max-height: 45vh;
+    border-radius: 12px;
+  }
+
+  .is-mobile .lyrics-body {
+    max-height: calc(45vh - 50px);
+  }
+
+  .video-wrap {
+    width: min(980px, 100%);
+  }
+}
+
+@media (max-width: 560px) {
+  .connect-page {
+    padding: 12px;
+  }
+
+  .connect-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .connect-card h1 {
+    font-size: 24px;
+  }
+
+  .is-mobile .side-nav {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "user"
+      "search"
+      "footer";
+  }
+
+  .is-mobile .side-footer {
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .is-mobile .card-grid {
+    grid-template-columns: 1fr;
   }
 }

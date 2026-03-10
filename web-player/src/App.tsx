@@ -139,6 +139,10 @@ function modeLabel(mode: PlaybackMode): string {
 }
 
 export default function App() {
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 900px)").matches;
+  });
   const [serverInput, setServerInput] = useState<string>(() => localStorage.getItem(STORAGE_SERVER) || "http://127.0.0.1:8080");
   const [serverUrl, setServerUrl] = useState<string>("");
   const [connectErr, setConnectErr] = useState<string>("");
@@ -203,6 +207,19 @@ export default function App() {
     if (!serverInput) return;
     void tryConnect(serverInput, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const media = window.matchMedia("(max-width: 900px)");
+    const onChange = () => setIsMobile(media.matches);
+    onChange();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    }
+    media.addListener(onChange);
+    return () => media.removeListener(onChange);
   }, []);
 
   useEffect(() => {
@@ -617,8 +634,15 @@ export default function App() {
     );
   }
 
+  const pageTitle =
+    tab === "recommend" ? "为你推荐" :
+    tab === "music" ? "音乐库" :
+    tab === "search" ? `搜索结果（${searchList.length}）` :
+    tab === "video" ? "视频库" :
+    "我的喜欢";
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isMobile ? "is-mobile" : "is-desktop"}`}>
       <aside className="side-nav">
         <div className="brand">CloudMusic</div>
         <div className="user-box">
@@ -654,13 +678,7 @@ export default function App() {
 
       <main className="main-panel">
         <header className="main-header">
-          <h2>
-            {tab === "recommend" && "为你推荐"}
-            {tab === "music" && "音乐库"}
-            {tab === "search" && `搜索结果（${searchList.length}）`}
-            {tab === "video" && "视频库"}
-            {tab === "favorites" && "我的喜欢"}
-          </h2>
+          <h2>{pageTitle}</h2>
           {dataErr && <div className="err">{dataErr}</div>}
         </header>
 
@@ -785,7 +803,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="player-bar">
+      <footer className={`player-bar ${isMobile ? "mobile-player" : ""}`}>
         <div className="track-meta">
           <strong>{currentTrack?.title || "未播放"}</strong>
           <span>{currentTrack?.artist || "请选择歌曲"}</span>
