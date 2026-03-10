@@ -184,6 +184,19 @@ docs/RECOMMENDATION_SCHEMA.sql
 ./start.sh
 ```
 
+### 8. Web 端音视频平台（React）
+
+```bash
+cd web-player
+npm install
+npm run dev
+```
+
+默认地址：`http://127.0.0.1:5173`
+
+Web 端对接文档：
+- `docs/WEB_PLAYER.md`
+
 ## ⚙️ 配置说明
 
 ### config.yaml 关键配置
