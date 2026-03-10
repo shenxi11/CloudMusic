@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   addFavorite,
   addPlayHistory,
@@ -138,6 +138,14 @@ function modeLabel(mode: PlaybackMode): string {
   }
 }
 
+function formatTime(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) return "00:00";
+  const total = Math.floor(sec);
+  const min = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(min).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
 export default function App() {
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -186,6 +194,9 @@ export default function App() {
   const [playbackMode, setPlaybackMode] = useState<PlaybackMode>("seq");
   const [playing, setPlaying] = useState(false);
   const [playErr, setPlayErr] = useState("");
+  const [audioCurrentSec, setAudioCurrentSec] = useState(0);
+  const [audioDurationSec, setAudioDurationSec] = useState(0);
+  const [mobilePlayerOpen, setMobilePlayerOpen] = useState(false);
 
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [lyricsLoading, setLyricsLoading] = useState(false);
@@ -238,11 +249,20 @@ export default function App() {
   }, [currentTrack?.lrcUrl]);
 
   useEffect(() => {
+    setAudioCurrentSec(0);
+    setAudioDurationSec(0);
+  }, [currentTrack?.streamUrl]);
+
+  useEffect(() => {
     if (!lyricsOpen || activeLyricIndex < 0 || !lyricBodyRef.current) return;
     const el = lyricBodyRef.current.querySelector<HTMLElement>(`[data-lyric-index="${activeLyricIndex}"]`);
     if (!el) return;
     el.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeLyricIndex, lyricsOpen]);
+
+  useEffect(() => {
+    if (!isMobile) setMobilePlayerOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -579,6 +599,53 @@ export default function App() {
     });
   }
 
+  function togglePlay() {
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+    } else {
+      void el.play().catch(() => undefined);
+    }
+  }
+
+  function seekAudio(value: number) {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(audioDurationSec) || audioDurationSec <= 0) return;
+    const next = Math.max(0, Math.min(value, audioDurationSec));
+    el.currentTime = next;
+    setAudioCurrentSec(next);
+  }
+
+  function handleAudioLoadedMeta(e: SyntheticEvent<HTMLAudioElement>) {
+    const el = e.currentTarget;
+    setAudioDurationSec(Number.isFinite(el.duration) ? el.duration : 0);
+  }
+
+  function handleAudioTimeUpdate(e: SyntheticEvent<HTMLAudioElement>) {
+    const t = e.currentTarget.currentTime;
+    setAudioCurrentSec(t);
+    setActiveLyricIndex(findActiveLyricIndex(lyricLines, t));
+  }
+
+  function handleAudioEnded() {
+    setPlaying(false);
+    if (serverUrl && session && currentTrack?.recContext) {
+      void postRecommendationFeedback(serverUrl, {
+        user_id: session.account,
+        song_id: currentTrack.path,
+        event_type: "finish",
+        request_id: currentTrack.recContext.requestId,
+        model_version: currentTrack.recContext.modelVersion,
+        scene: currentTrack.recContext.scene
+      }).catch(() => undefined);
+    }
+    const next = nextIndexByMode();
+    if (next >= 0) {
+      void playQueueIndex(queueItems, next);
+    }
+  }
+
   function logout() {
     setSession(null);
     setRecommendData(null);
@@ -586,6 +653,7 @@ export default function App() {
     setCurrentTrack(null);
     setQueueItems([]);
     setQueueIndex(-1);
+    setMobilePlayerOpen(false);
     localStorage.removeItem(STORAGE_USER);
   }
 
@@ -641,6 +709,15 @@ export default function App() {
     tab === "video" ? "视频库" :
     "我的喜欢";
 
+  const pageSubtitle =
+    tab === "recommend" ? "结合你的历史行为和收藏偏好" :
+    tab === "music" ? `已收录 ${musicList.length} 首歌曲` :
+    tab === "search" ? "按歌名、歌手快速定位曲目" :
+    tab === "video" ? `共 ${videoList.length} 个视频` :
+    `已收藏 ${favoriteList.length} 首歌曲`;
+
+  const progressPct = audioDurationSec > 0 ? Math.min(100, (audioCurrentSec / audioDurationSec) * 100) : 0;
+
   return (
     <div className={`app-shell ${isMobile ? "is-mobile" : "is-desktop"}`}>
       <aside className="side-nav">
@@ -678,7 +755,10 @@ export default function App() {
 
       <main className="main-panel">
         <header className="main-header">
-          <h2>{pageTitle}</h2>
+          <div>
+            <h2>{pageTitle}</h2>
+            <p>{pageSubtitle}</p>
+          </div>
           {dataErr && <div className="err">{dataErr}</div>}
         </header>
 
@@ -705,144 +785,229 @@ export default function App() {
         )}
 
         {tab === "music" && (
-          <section className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>标题</th>
-                  <th>歌手</th>
-                  <th>时长</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {musicList.map((item, idx) => (
-                  <tr key={item.path}>
-                    <td>{guessTitle(item.path)}</td>
-                    <td>{item.artist || "未知歌手"}</td>
-                    <td>{item.duration || "-"}</td>
-                    <td><button onClick={() => void playMusicAt(musicList, idx)}>播放</button></td>
+          isMobile ? (
+            <section className="mobile-list">
+              {musicList.map((item, idx) => (
+                <article className="mobile-list-item" key={item.path}>
+                  <div className="mobile-item-main">
+                    <strong>{guessTitle(item.path)}</strong>
+                    <span>{item.artist || "未知歌手"}</span>
+                  </div>
+                  <div className="mobile-item-side">
+                    <small>{item.duration || "-"}</small>
+                    <button onClick={() => void playMusicAt(musicList, idx)}>播放</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <section className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>标题</th>
+                    <th>歌手</th>
+                    <th>时长</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {musicList.map((item, idx) => (
+                    <tr key={item.path}>
+                      <td>{guessTitle(item.path)}</td>
+                      <td>{item.artist || "未知歌手"}</td>
+                      <td>{item.duration || "-"}</td>
+                      <td><button onClick={() => void playMusicAt(musicList, idx)}>播放</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
         )}
 
         {tab === "search" && (
-          <section className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>标题</th>
-                  <th>歌手</th>
-                  <th>时长</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {searchList.map((item, idx) => (
-                  <tr key={`${item.path}_${idx}`}>
-                    <td>{guessTitle(item.path)}</td>
-                    <td>{item.artist || "未知歌手"}</td>
-                    <td>{item.duration || "-"}</td>
-                    <td><button onClick={() => void playMusicAt(searchList, idx)}>播放</button></td>
+          isMobile ? (
+            <section className="mobile-list">
+              {searchList.map((item, idx) => (
+                <article className="mobile-list-item" key={`${item.path}_${idx}`}>
+                  <div className="mobile-item-main">
+                    <strong>{guessTitle(item.path)}</strong>
+                    <span>{item.artist || "未知歌手"}</span>
+                  </div>
+                  <div className="mobile-item-side">
+                    <small>{item.duration || "-"}</small>
+                    <button onClick={() => void playMusicAt(searchList, idx)}>播放</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <section className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>标题</th>
+                    <th>歌手</th>
+                    <th>时长</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {searchList.map((item, idx) => (
+                    <tr key={`${item.path}_${idx}`}>
+                      <td>{guessTitle(item.path)}</td>
+                      <td>{item.artist || "未知歌手"}</td>
+                      <td>{item.duration || "-"}</td>
+                      <td><button onClick={() => void playMusicAt(searchList, idx)}>播放</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
         )}
 
         {tab === "video" && (
-          <section className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>文件名</th>
-                  <th>大小</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {videoList.map((item) => (
-                  <tr key={item.path}>
-                    <td>{item.name || guessTitle(item.path)}</td>
-                    <td>{bytesToMB(item.size)}</td>
-                    <td><button onClick={() => void playVideo(item.path, item.name)}>播放</button></td>
+          isMobile ? (
+            <section className="mobile-list">
+              {videoList.map((item) => (
+                <article className="mobile-list-item" key={item.path}>
+                  <div className="mobile-item-main">
+                    <strong>{item.name || guessTitle(item.path)}</strong>
+                    <span>大小：{bytesToMB(item.size)}</span>
+                  </div>
+                  <div className="mobile-item-side">
+                    <button onClick={() => void playVideo(item.path, item.name)}>播放</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <section className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>文件名</th>
+                    <th>大小</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {videoList.map((item) => (
+                    <tr key={item.path}>
+                      <td>{item.name || guessTitle(item.path)}</td>
+                      <td>{bytesToMB(item.size)}</td>
+                      <td><button onClick={() => void playVideo(item.path, item.name)}>播放</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
         )}
 
         {tab === "favorites" && (
-          <section className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>标题</th>
-                  <th>歌手</th>
-                  <th>专辑</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {favoriteList.map((item, idx) => (
-                  <tr key={item.path}>
-                    <td>{item.title || guessTitle(item.path)}</td>
-                    <td>{item.artist || "未知歌手"}</td>
-                    <td>{item.album || "-"}</td>
-                    <td><button onClick={() => void playFavoriteAt(favoriteList, idx)}>播放</button></td>
+          isMobile ? (
+            <section className="mobile-list">
+              {favoriteList.map((item, idx) => (
+                <article className="mobile-list-item" key={item.path}>
+                  <div className="mobile-item-main">
+                    <strong>{item.title || guessTitle(item.path)}</strong>
+                    <span>{item.artist || "未知歌手"}</span>
+                    <small>{item.album || "-"}</small>
+                  </div>
+                  <div className="mobile-item-side">
+                    <button onClick={() => void playFavoriteAt(favoriteList, idx)}>播放</button>
+                  </div>
+                </article>
+              ))}
+            </section>
+          ) : (
+            <section className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>标题</th>
+                    <th>歌手</th>
+                    <th>专辑</th>
+                    <th>操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {favoriteList.map((item, idx) => (
+                    <tr key={item.path}>
+                      <td>{item.title || guessTitle(item.path)}</td>
+                      <td>{item.artist || "未知歌手"}</td>
+                      <td>{item.album || "-"}</td>
+                      <td><button onClick={() => void playFavoriteAt(favoriteList, idx)}>播放</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
         )}
       </main>
 
       <footer className={`player-bar ${isMobile ? "mobile-player" : ""}`}>
-        <div className="track-meta">
-          <strong>{currentTrack?.title || "未播放"}</strong>
-          <span>{currentTrack?.artist || "请选择歌曲"}</span>
-          <small>队列：{queueIndex >= 0 ? `${queueIndex + 1}/${queueItems.length}` : "-"}</small>
-        </div>
+        {isMobile ? (
+          <>
+            <div className="mobile-player-top" onClick={() => currentTrack && setMobilePlayerOpen(true)}>
+              <div
+                className="track-thumb"
+                style={{ backgroundImage: currentTrack?.coverArtUrl ? `url(${currentTrack.coverArtUrl})` : undefined }}
+              />
+              <div className="track-meta">
+                <strong>{currentTrack?.title || "未播放"}</strong>
+                <span>{currentTrack?.artist || "请选择歌曲"}</span>
+                <small>队列：{queueIndex >= 0 ? `${queueIndex + 1}/${queueItems.length}` : "-"}</small>
+              </div>
+              <div className="mobile-mini-actions">
+                <button disabled={!currentTrack} onClick={(e) => { e.stopPropagation(); togglePlay(); }}>
+                  {playing ? "暂停" : "播放"}
+                </button>
+              </div>
+            </div>
+            <div className="mobile-progress">
+              <span>{formatTime(audioCurrentSec)}</span>
+              <input
+                type="range"
+                min={0}
+                max={audioDurationSec > 0 ? audioDurationSec : 1}
+                step={1}
+                value={audioDurationSec > 0 ? audioCurrentSec : 0}
+                onChange={(e) => seekAudio(Number(e.target.value))}
+                disabled={!currentTrack}
+              />
+              <span>{formatTime(audioDurationSec)}</span>
+            </div>
+          </>
+        ) : (
+          <div className="track-meta">
+            <strong>{currentTrack?.title || "未播放"}</strong>
+            <span>{currentTrack?.artist || "请选择歌曲"}</span>
+            <small>队列：{queueIndex >= 0 ? `${queueIndex + 1}/${queueItems.length}` : "-"}</small>
+          </div>
+        )}
 
         <audio
           ref={audioRef}
-          controls
+          className={`audio-core ${isMobile ? "mobile-hidden-audio" : ""}`}
+          controls={!isMobile}
           autoPlay
           src={currentTrack?.streamUrl}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onTimeUpdate={(e) => {
-            const t = (e.currentTarget as HTMLAudioElement).currentTime;
-            setActiveLyricIndex(findActiveLyricIndex(lyricLines, t));
-          }}
-          onEnded={() => {
-            setPlaying(false);
-            if (serverUrl && session && currentTrack?.recContext) {
-              void postRecommendationFeedback(serverUrl, {
-                user_id: session.account,
-                song_id: currentTrack.path,
-                event_type: "finish",
-                request_id: currentTrack.recContext.requestId,
-                model_version: currentTrack.recContext.modelVersion,
-                scene: currentTrack.recContext.scene
-              }).catch(() => undefined);
-            }
-            const next = nextIndexByMode();
-            if (next >= 0) {
-              void playQueueIndex(queueItems, next);
-            }
-          }}
+          onLoadedMetadata={handleAudioLoadedMeta}
+          onDurationChange={handleAudioLoadedMeta}
+          onTimeUpdate={handleAudioTimeUpdate}
+          onEnded={handleAudioEnded}
         />
 
         <div className="player-actions">
           <button disabled={queueIndex <= 0} onClick={playPrev}>上一首</button>
-          <button disabled={!currentTrack || !playing} onClick={() => audioRef.current?.pause()}>暂停</button>
+          <button disabled={!currentTrack} onClick={togglePlay}>{playing ? "暂停" : "播放"}</button>
           <button disabled={queueItems.length === 0} onClick={playNext}>下一首</button>
           <button disabled={!currentTrack} onClick={() => currentTrack && void onLikeCurrent(currentTrack)}>喜欢</button>
           <button className="ghost" onClick={cyclePlaybackMode}>模式：{modeLabel(playbackMode)}</button>
@@ -852,6 +1017,44 @@ export default function App() {
         </div>
         {playErr && <div className="err">{playErr}</div>}
       </footer>
+
+      {isMobile && mobilePlayerOpen && currentTrack && (
+        <div className="mobile-now-playing" onClick={() => setMobilePlayerOpen(false)}>
+          <div className="mobile-now-card" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-now-head">
+              <strong>正在播放</strong>
+              <button className="ghost" onClick={() => setMobilePlayerOpen(false)}>关闭</button>
+            </div>
+            <div
+              className="mobile-now-cover"
+              style={{ backgroundImage: currentTrack.coverArtUrl ? `url(${currentTrack.coverArtUrl})` : undefined }}
+            />
+            <h3>{currentTrack.title}</h3>
+            <p>{currentTrack.artist}</p>
+            <div className="mobile-now-progress">
+              <div className="mobile-now-progress-track">
+                <div style={{ width: `${progressPct}%` }} />
+              </div>
+              <div>
+                <span>{formatTime(audioCurrentSec)}</span>
+                <span>{formatTime(audioDurationSec)}</span>
+              </div>
+            </div>
+            <div className="mobile-now-controls">
+              <button disabled={queueIndex <= 0} onClick={playPrev}>上一首</button>
+              <button disabled={!currentTrack} onClick={togglePlay}>{playing ? "暂停" : "播放"}</button>
+              <button disabled={queueItems.length === 0} onClick={playNext}>下一首</button>
+            </div>
+            <div className="mobile-now-actions">
+              <button disabled={!currentTrack} onClick={() => currentTrack && void onLikeCurrent(currentTrack)}>喜欢</button>
+              <button className="ghost" onClick={cyclePlaybackMode}>{modeLabel(playbackMode)}</button>
+              <button className="ghost" onClick={() => setLyricsOpen(!lyricsOpen)} disabled={!currentTrack?.lrcUrl}>
+                {lyricsOpen ? "隐藏歌词" : "歌词"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {lyricsOpen && (
         <aside className="lyrics-panel">
