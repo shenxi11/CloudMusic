@@ -23,6 +23,9 @@ import (
 	musicHandler "music-platform/internal/music/handler"
 	musicRepo "music-platform/internal/music/repository"
 	musicService "music-platform/internal/music/service"
+	playlistHandler "music-platform/internal/playlist/handler"
+	playlistRepo "music-platform/internal/playlist/repository"
+	playlistService "music-platform/internal/playlist/service"
 	recommendHandler "music-platform/internal/recommend/handler"
 	recommendRepo "music-platform/internal/recommend/repository"
 	recommendService "music-platform/internal/recommend/service"
@@ -85,6 +88,10 @@ func main() {
 	if err := usermusicRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化用户行为表失败，将继续启动: %v", err)
 	}
+	playlistRepository := playlistRepo.NewPlaylistRepository(db, profileSchema, catalogSchema)
+	if err := playlistRepository.EnsureTables(); err != nil {
+		logger.Warn("初始化歌单表失败，将继续启动: %v", err)
+	}
 	recommendRepository := recommendRepo.NewRecommendRepository(db, profileSchema, catalogSchema)
 	if err := recommendRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化推荐数据表失败，将继续启动: %v", err)
@@ -123,6 +130,7 @@ func main() {
 	}
 
 	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil)
+	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil)
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 	userH := userHandler.NewUserHandler(userSvc)
 	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
@@ -135,6 +143,7 @@ func main() {
 	videoH := videoHandler.NewVideoHandler(videoSvc, baseURL)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
+	playlistH := playlistHandler.NewPlaylistHandler(playlistSvc)
 	recommendH := recommendHandler.NewRecommendHandler(recommendSvc)
 	adminH := adminHandler.NewAdminHandler(cfg, db)
 	connectH := clientHandler.NewConnectHandler(cfg)
@@ -173,6 +182,8 @@ func main() {
 	mux.HandleFunc("/user/history/delete", usermusicH.DeletePlayHistory) // 删除播放历史（批量）
 	mux.HandleFunc("/user/history/clear", usermusicH.ClearPlayHistory)   // 清空播放历史
 	mux.HandleFunc("/user/history", usermusicH.ListPlayHistory)          // 播放历史
+	mux.HandleFunc("/user/playlists", playlistH.HandleRoot)
+	mux.HandleFunc("/user/playlists/", playlistH.HandleSubRoutes)
 	mux.HandleFunc("/recommendations/audio", recommendH.GetRecommendations)
 	mux.HandleFunc("/recommendations/similar/", recommendH.GetSimilar)
 	mux.HandleFunc("/recommendations/feedback", recommendH.PostFeedback)
