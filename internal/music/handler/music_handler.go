@@ -193,3 +193,22 @@ func (h *MusicHandler) SearchMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(musicList)
 }
+
+// HealthTest 提供一个独立的轻量测试接口，便于联调和 PR 验证
+func (h *MusicHandler) HealthTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持GET请求")
+		return
+	}
+
+	response.Success(w, map[string]interface{}{
+		"service": "music",
+		"status":  "ok",
+		"route":   "/music/health-test",
+	})
+}
