@@ -170,6 +170,7 @@ func main() {
 	mux.HandleFunc("/get_music", musicH.GetMusic)
 	mux.HandleFunc("/music/artist", musicH.GetMusicByArtist) // 根据歌手查询音乐
 	mux.HandleFunc("/music/search", musicH.SearchMusic)      // 关键词搜索音乐
+	mux.HandleFunc("/music/health-test", musicH.HealthTest)
 
 	// 歌手相关路由
 	mux.HandleFunc("/artist/search", artistH.SearchArtist) // 搜索歌手是否存在
