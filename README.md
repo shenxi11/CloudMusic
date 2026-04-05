@@ -197,6 +197,17 @@ npm run dev
 Web 端对接文档：
 - `docs/WEB_PLAYER.md`
 
+### 9. AI 自动 Code Review
+
+仓库已预置 GitHub Actions 工作流，可在 PR 创建、更新、重新打开和转为非 Draft 时自动生成 AI review 评论。
+
+启用前需要在仓库 `Settings -> Secrets and variables -> Actions` 中添加：
+
+- `OPENAI_API_KEY`
+
+详细配置见：
+- `docs/AI_CODE_REVIEW.md`
+
 ## ⚙️ 配置说明
 
 ### config.yaml 关键配置
