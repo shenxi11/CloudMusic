@@ -197,6 +197,25 @@ npm run dev
 Web 端对接文档：
 - `docs/WEB_PLAYER.md`
 
+### 9. GitHub Copilot Code Review
+
+本仓库改为使用 GitHub 官方的 Copilot code review 能力，不再依赖自定义 OpenAI Actions workflow，也不需要配置 `OPENAI_API_KEY`。
+
+开启方式：
+
+1. 进入仓库 `Settings`
+2. 打开 `Rules` -> `Rulesets`
+3. 新建或编辑一个 `Branch ruleset`
+4. 在 `Branch rules` 中勾选 `Automatically request Copilot code review`
+5. 可按需额外勾选 `Review new pushes` 和 `Review draft pull requests`
+
+仓库已提供 Copilot review 指令文件：
+
+- `.github/copilot-instructions.md`
+
+详细配置见：
+- `docs/COPILOT_CODE_REVIEW.md`
+
 ## ⚙️ 配置说明
 
 ### config.yaml 关键配置
