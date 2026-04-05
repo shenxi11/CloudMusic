@@ -206,9 +206,9 @@ func (h *MusicHandler) HealthTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Success(w, map[string]interface{}{
+	response.JSON(w, http.StatusOK, map[string]any{
 		"service": "music",
 		"status":  "ok",
-		"route":   "/music/health-test",
+		"route":   r.URL.Path,
 	})
 }
