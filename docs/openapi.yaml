@@ -143,6 +143,89 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeSuccessBool"
 
+  /users/profile:
+    get:
+      tags: [auth]
+      summary: Get current user profile
+      operationId: getUserProfile
+      parameters:
+        - in: query
+          name: account
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: session_token
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUserProfile"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /users/profile/username:
+    post:
+      tags: [auth]
+      summary: Update current username
+      operationId: updateUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUsernameRequest"
+            example:
+              account: demo_account
+              session_token: demo_session_token
+              username: 新用户名
+      responses:
+        "200":
+          description: Username updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUpdateUsernameResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "409":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /users/profile/avatar:
+    post:
+      tags: [auth]
+      summary: Upload or replace current avatar
+      operationId: uploadAvatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [account, session_token, avatar]
+              properties:
+                account:
+                  type: string
+                session_token:
+                  type: string
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Avatar uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeUploadAvatarResponse"
+        "401":
+          $ref: "#/components/responses/ErrorEnvelope"
+
   /users/online/session/start:
     post:
       tags: [presence]
@@ -1578,6 +1661,8 @@ components:
           type: boolean
         username:
           type: string
+        avatar_url:
+          type: string
         song_path_list:
           type: array
           items:
@@ -1589,6 +1674,97 @@ components:
         online_ttl_sec:
           type: integer
       required: [success, success_bool, username, song_path_list]
+
+    UpdateUsernameRequest:
+      type: object
+      required: [account, session_token, username]
+      properties:
+        account:
+          type: string
+        session_token:
+          type: string
+        username:
+          type: string
+
+    EnvelopeUserProfile:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/UserProfile"
+      required: [code, message, data]
+
+    UserProfile:
+      type: object
+      properties:
+        account:
+          type: string
+        username:
+          type: string
+        avatar_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [account, username]
+
+    EnvelopeUpdateUsernameResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/UpdateUsernameResponse"
+      required: [code, message, data]
+
+    UpdateUsernameResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        username:
+          type: string
+      required: [success, message, username]
+
+    EnvelopeUploadAvatarResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/UploadAvatarResponse"
+      required: [code, message, data]
+
+    UploadAvatarResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        avatar_url:
+          type: string
+        avatar_path:
+          type: string
+      required: [success, message, avatar_url, avatar_path]
 
     UserPingRequest:
       type: object

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -104,6 +105,96 @@ func (h *UserHandler) AddMusic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, map[string]bool{"success": true})
+}
+
+func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 GET")
+		return
+	}
+
+	req := model.UserProfileRequest{
+		Account:      r.URL.Query().Get("account"),
+		SessionToken: r.URL.Query().Get("session_token"),
+	}
+	profile, err := h.userService.GetProfile(r.Context(), &req)
+	if err != nil {
+		writeProfileError(w, err)
+		return
+	}
+	response.Success(w, profile)
+}
+
+func (h *UserHandler) UpdateUsername(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	var req model.UpdateUsernameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "请求参数错误")
+		return
+	}
+
+	ret, err := h.userService.UpdateUsername(r.Context(), &req)
+	if err != nil {
+		writeProfileError(w, err)
+		return
+	}
+	response.Success(w, ret)
+}
+
+func (h *UserHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	if err := r.ParseMultipartForm(6 << 20); err != nil {
+		response.BadRequest(w, "表单解析失败")
+		return
+	}
+
+	file, fileHeader, err := r.FormFile("avatar")
+	if err != nil {
+		response.BadRequest(w, "缺少头像文件")
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, 5<<20+1))
+	if err != nil {
+		response.InternalServerError(w, "读取头像文件失败")
+		return
+	}
+
+	req := model.UploadAvatarRequest{
+		Account:      r.FormValue("account"),
+		SessionToken: r.FormValue("session_token"),
+		Filename:     fileHeader.Filename,
+		ContentType:  fileHeader.Header.Get("Content-Type"),
+		Data:         data,
+	}
+
+	ret, err := h.userService.UploadAvatar(r.Context(), &req)
+	if err != nil {
+		writeProfileError(w, err)
+		return
+	}
+	response.Success(w, ret)
 }
 
 // Ping 用户在线心跳
@@ -244,4 +335,24 @@ func writeOnlineError(w http.ResponseWriter, err error) {
 		return
 	}
 	response.BadRequest(w, msg)
+}
+
+func writeProfileError(w http.ResponseWriter, err error) {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "会话") || strings.Contains(msg, "session_token") || strings.Contains(msg, "token"):
+		response.Unauthorized(w, msg)
+	case strings.Contains(msg, "用户不存在"):
+		response.NotFound(w, msg)
+	case strings.Contains(msg, "已被使用"):
+		response.Error(w, http.StatusConflict, msg)
+	case strings.Contains(msg, "查询用户失败") ||
+		strings.Contains(msg, "更新用户名失败") ||
+		strings.Contains(msg, "更新头像信息失败") ||
+		strings.Contains(msg, "保存头像失败") ||
+		strings.Contains(msg, "创建头像目录失败"):
+		response.InternalServerError(w, msg)
+	default:
+		response.BadRequest(w, msg)
+	}
 }

@@ -98,7 +98,7 @@ func main() {
 	}
 
 	// 7. 初始化服务层
-	userSvc := userService.NewUserService(userRepository, userMusicRepository)
+	userSvc := userService.NewUserService(userRepository, userMusicRepository, "", cfg.Server.UploadDir)
 	musicSvc := musicService.NewMusicService(musicRepository)
 	videoSvc := videoService.NewVideoService(cfg.Server.VideoDir)
 	artistSvc := artistService.NewArtistService(artistRepository)
@@ -123,6 +123,7 @@ func main() {
 			baseURL = fmt.Sprintf("%s://%s:%d", protocol, cfg.Server.PublicHost, publicPort)
 		}
 	}
+	userSvc = userService.NewUserService(userRepository, userMusicRepository, baseURL, cfg.Server.UploadDir)
 
 	mediaSchema := strings.TrimSpace(cfg.Schemas.Media)
 	if mediaSchema == "" {
@@ -157,6 +158,9 @@ func main() {
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
 	mux.HandleFunc("/users/ping", userH.Ping)
+	mux.HandleFunc("/users/profile", userH.GetProfile)
+	mux.HandleFunc("/users/profile/username", userH.UpdateUsername)
+	mux.HandleFunc("/users/profile/avatar", userH.UploadAvatar)
 	mux.HandleFunc("/users/online/session/start", userH.OnlineSessionStart)
 	mux.HandleFunc("/users/online/heartbeat", userH.OnlineHeartbeat)
 	mux.HandleFunc("/users/online/status", userH.OnlineStatus)

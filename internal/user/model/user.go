@@ -4,11 +4,12 @@ import "time"
 
 // User 用户模型（与数据库表结构一致）
 type User struct {
-	Account   string    `json:"account" db:"account"` // 主键
-	Password  string    `json:"-" db:"password"`      // 不返回密码
-	Username  string    `json:"username" db:"username"`
-	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at"`
+	Account    string    `json:"account" db:"account"` // 主键
+	Password   string    `json:"-" db:"password"`      // 不返回密码
+	Username   string    `json:"username" db:"username"`
+	AvatarPath string    `json:"avatar_path,omitempty" db:"avatar_path"`
+	CreatedAt  time.Time `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 // UserMusic 用户收藏的音乐（对应 user_path 表）
@@ -36,6 +37,7 @@ type LoginResponse struct {
 	Success                  string   `json:"success"`      // 兼容旧客户端
 	SuccessBool              bool     `json:"success_bool"` // 新布尔字段
 	Username                 string   `json:"username"`
+	AvatarURL                string   `json:"avatar_url,omitempty"`
 	SongPathList             []string `json:"song_path_list"`
 	OnlineSessionToken       string   `json:"online_session_token,omitempty"`
 	OnlineHeartbeatIntervalS int      `json:"online_heartbeat_interval_sec,omitempty"`
@@ -101,4 +103,44 @@ type OnlineStatusResponse struct {
 	TTLRemainingSec      int64  `json:"ttl_remaining_sec"`
 	HeartbeatIntervalSec int    `json:"heartbeat_interval_sec"`
 	OnlineTTLSec         int    `json:"online_ttl_sec"`
+}
+
+type UserProfileRequest struct {
+	Account      string `json:"account"`
+	SessionToken string `json:"session_token"`
+}
+
+type UserProfileResponse struct {
+	Account   string    `json:"account"`
+	Username  string    `json:"username"`
+	AvatarURL string    `json:"avatar_url,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+}
+
+type UpdateUsernameRequest struct {
+	Account      string `json:"account"`
+	SessionToken string `json:"session_token"`
+	Username     string `json:"username"`
+}
+
+type UpdateUsernameResponse struct {
+	Success  bool   `json:"success"`
+	Message  string `json:"message"`
+	Username string `json:"username"`
+}
+
+type UploadAvatarRequest struct {
+	Account      string `json:"account"`
+	SessionToken string `json:"session_token"`
+	Filename     string `json:"filename"`
+	ContentType  string `json:"content_type"`
+	Data         []byte `json:"-"`
+}
+
+type UploadAvatarResponse struct {
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	AvatarURL  string `json:"avatar_url"`
+	AvatarPath string `json:"avatar_path"`
 }

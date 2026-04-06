@@ -102,6 +102,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+      - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       AUTH_SERVICE_HOST: 0.0.0.0
