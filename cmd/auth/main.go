@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"music-platform/internal/common/cache"
 	"music-platform/internal/common/config"
@@ -36,16 +37,39 @@ func main() {
 	}
 	defer cache.Close()
 
+	if err := os.MkdirAll(cfg.Server.UploadDir, os.ModePerm); err != nil {
+		logger.Fatal("创建上传目录失败: %v", err)
+	}
+
 	db := database.GetDB()
 	userRepository := userRepo.NewUserRepository(db)
 	userMusicRepository := userRepo.NewUserMusicRepository(db)
-	userSvc := userService.NewUserService(userRepository, userMusicRepository)
+	baseURL := strings.TrimSuffix(cfg.Server.PublicBaseURL, "/")
+	if baseURL == "" {
+		protocol := "http"
+		if cfg.Server.EnableTLS {
+			protocol = "https"
+		}
+		publicHost := strings.TrimSpace(cfg.Server.PublicHost)
+		publicPort := cfg.Server.PublicPort
+		if publicPort == 0 {
+			publicPort = cfg.Server.Port
+		}
+		if publicHost == "" {
+			publicHost = "localhost"
+		}
+		baseURL = fmt.Sprintf("%s://%s:%d", protocol, publicHost, publicPort)
+	}
+	userSvc := userService.NewUserService(userRepository, userMusicRepository, baseURL, cfg.Server.UploadDir)
 	userH := userHandler.NewUserHandler(userSvc)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users/register", userH.Register)
 	mux.HandleFunc("/users/login", userH.Login)
 	mux.HandleFunc("/users/ping", userH.Ping)
+	mux.HandleFunc("/users/profile", userH.GetProfile)
+	mux.HandleFunc("/users/profile/username", userH.UpdateUsername)
+	mux.HandleFunc("/users/profile/avatar", userH.UploadAvatar)
 	mux.HandleFunc("/users/online/session/start", userH.OnlineSessionStart)
 	mux.HandleFunc("/users/online/heartbeat", userH.OnlineHeartbeat)
 	mux.HandleFunc("/users/online/status", userH.OnlineStatus)

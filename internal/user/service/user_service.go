@@ -7,6 +7,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +24,7 @@ import (
 const (
 	defaultOnlineTTL          = 10 * time.Minute
 	defaultHeartbeatIntervalS = 30
+	maxAvatarSize             = 5 << 20
 )
 
 // UserService 用户服务接口
@@ -28,6 +32,9 @@ type UserService interface {
 	Register(ctx context.Context, req *model.RegisterRequest) error
 	Login(ctx context.Context, req *model.LoginRequest) (*model.LoginResponse, error)
 	AddMusic(ctx context.Context, req *model.AddMusicRequest) error
+	GetProfile(ctx context.Context, req *model.UserProfileRequest) (*model.UserProfileResponse, error)
+	UpdateUsername(ctx context.Context, req *model.UpdateUsernameRequest) (*model.UpdateUsernameResponse, error)
+	UploadAvatar(ctx context.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error)
 	TouchOnline(ctx context.Context, req *model.UserPingRequest) error
 	StartOnlineSession(ctx context.Context, req *model.OnlineSessionStartRequest) (*model.OnlineSessionResponse, error)
 	HeartbeatOnline(ctx context.Context, req *model.OnlineHeartbeatRequest) (*model.OnlineSessionResponse, error)
@@ -38,13 +45,17 @@ type UserService interface {
 type userService struct {
 	userRepo      repository.UserRepository
 	userMusicRepo repository.UserMusicRepository
+	baseURL       string
+	uploadDir     string
 }
 
 // NewUserService 创建用户服务
-func NewUserService(userRepo repository.UserRepository, userMusicRepo repository.UserMusicRepository) UserService {
+func NewUserService(userRepo repository.UserRepository, userMusicRepo repository.UserMusicRepository, baseURL string, uploadDir string) UserService {
 	return &userService{
 		userRepo:      userRepo,
 		userMusicRepo: userMusicRepo,
+		baseURL:       strings.TrimSuffix(strings.TrimSpace(baseURL), "/"),
+		uploadDir:     strings.TrimSpace(uploadDir),
 	}
 }
 
@@ -135,6 +146,7 @@ func (s *userService) Login(ctx context.Context, req *model.LoginRequest) (*mode
 	response.Success = "true"
 	response.SuccessBool = true
 	response.Username = user.Username
+	response.AvatarURL = s.buildAvatarURL(user.AvatarPath)
 	session, err := s.startOnlineSession(user.Account)
 	if err == nil && session != nil {
 		response.OnlineSessionToken = session.SessionToken
@@ -320,6 +332,157 @@ func (s *userService) AddMusic(ctx context.Context, req *model.AddMusicRequest) 
 	return nil
 }
 
+func (s *userService) GetProfile(ctx context.Context, req *model.UserProfileRequest) (*model.UserProfileResponse, error) {
+	account := strings.TrimSpace(req.Account)
+	token := strings.TrimSpace(req.SessionToken)
+	if account == "" {
+		return nil, errors.New("account 不能为空")
+	}
+	if token == "" {
+		return nil, errors.New("session_token 不能为空")
+	}
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.FindByAccount(ctx, account)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("用户不存在")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+
+	return &model.UserProfileResponse{
+		Account:   user.Account,
+		Username:  user.Username,
+		AvatarURL: s.buildAvatarURL(user.AvatarPath),
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}, nil
+}
+
+func (s *userService) UpdateUsername(ctx context.Context, req *model.UpdateUsernameRequest) (*model.UpdateUsernameResponse, error) {
+	account := strings.TrimSpace(req.Account)
+	token := strings.TrimSpace(req.SessionToken)
+	newUsername := strings.TrimSpace(req.Username)
+	if account == "" {
+		return nil, errors.New("account 不能为空")
+	}
+	if token == "" {
+		return nil, errors.New("session_token 不能为空")
+	}
+	if newUsername == "" {
+		return nil, errors.New("用户名不能为空")
+	}
+	if len([]rune(newUsername)) > 100 {
+		return nil, errors.New("用户名长度不能超过 100")
+	}
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.FindByAccount(ctx, account)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("用户不存在")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+	if user.Username == newUsername {
+		return &model.UpdateUsernameResponse{
+			Success:  true,
+			Message:  "更新成功",
+			Username: newUsername,
+		}, nil
+	}
+
+	existing, err := s.userRepo.FindByUsername(ctx, newUsername)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("查询用户名失败: %w", err)
+	}
+	if existing != nil && existing.Account != account {
+		return nil, errors.New("该用户名已被使用")
+	}
+
+	if err := s.userRepo.UpdateUsername(ctx, account, user.Username, newUsername); err != nil {
+		if strings.Contains(err.Error(), "Duplicate entry") {
+			return nil, errors.New("该用户名已被使用")
+		}
+		return nil, fmt.Errorf("更新用户名失败: %w", err)
+	}
+
+	return &model.UpdateUsernameResponse{
+		Success:  true,
+		Message:  "更新成功",
+		Username: newUsername,
+	}, nil
+}
+
+func (s *userService) UploadAvatar(ctx context.Context, req *model.UploadAvatarRequest) (*model.UploadAvatarResponse, error) {
+	account := strings.TrimSpace(req.Account)
+	token := strings.TrimSpace(req.SessionToken)
+	if account == "" {
+		return nil, errors.New("account 不能为空")
+	}
+	if token == "" {
+		return nil, errors.New("session_token 不能为空")
+	}
+	if len(req.Data) == 0 {
+		return nil, errors.New("头像文件不能为空")
+	}
+	if len(req.Data) > maxAvatarSize {
+		return nil, errors.New("头像文件不能超过 5MB")
+	}
+	if err := s.ensureSessionTokenMatch(ctx, account, token); err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.FindByAccount(ctx, account)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("用户不存在")
+		}
+		return nil, fmt.Errorf("查询用户失败: %w", err)
+	}
+	if s.uploadDir == "" {
+		return nil, errors.New("上传目录未配置")
+	}
+
+	contentType := http.DetectContentType(req.Data)
+	ext, ok := avatarExtByContentType(contentType)
+	if !ok {
+		return nil, errors.New("仅支持 jpg/jpeg/png/webp 图片")
+	}
+
+	avatarRelDir := filepath.ToSlash(filepath.Join("avatars", account))
+	avatarFilename := "avatar" + ext
+	avatarRelPath := filepath.ToSlash(filepath.Join(avatarRelDir, avatarFilename))
+	avatarAbsDir := filepath.Join(s.uploadDir, filepath.FromSlash(avatarRelDir))
+	if err := os.MkdirAll(avatarAbsDir, os.ModePerm); err != nil {
+		return nil, fmt.Errorf("创建头像目录失败: %w", err)
+	}
+
+	avatarAbsPath := filepath.Join(s.uploadDir, filepath.FromSlash(avatarRelPath))
+	if err := os.WriteFile(avatarAbsPath, req.Data, 0o644); err != nil {
+		return nil, fmt.Errorf("保存头像失败: %w", err)
+	}
+
+	if err := s.userRepo.UpdateAvatarPath(ctx, account, avatarRelPath); err != nil {
+		_ = os.Remove(avatarAbsPath)
+		return nil, fmt.Errorf("更新头像信息失败: %w", err)
+	}
+
+	s.removeOldAvatarIfManaged(account, user.AvatarPath, avatarRelPath)
+
+	return &model.UploadAvatarResponse{
+		Success:    true,
+		Message:    "上传成功",
+		AvatarURL:  s.buildAvatarURL(avatarRelPath),
+		AvatarPath: avatarRelPath,
+	}, nil
+}
+
 func (s *userService) markUserOnline(account string) {
 	account = strings.TrimSpace(account)
 	if account == "" {
@@ -478,4 +641,50 @@ func generateSessionToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func (s *userService) buildAvatarURL(avatarPath string) string {
+	trimmed := strings.TrimSpace(avatarPath)
+	if trimmed == "" {
+		return ""
+	}
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if s.baseURL == "" {
+		return "/uploads/" + trimmed
+	}
+	return s.baseURL + "/uploads/" + trimmed
+}
+
+func avatarExtByContentType(contentType string) (string, bool) {
+	switch contentType {
+	case "image/jpeg":
+		return ".jpg", true
+	case "image/png":
+		return ".png", true
+	case "image/webp":
+		return ".webp", true
+	default:
+		return "", false
+	}
+}
+
+func (s *userService) removeOldAvatarIfManaged(account string, oldRelPath string, newRelPath string) {
+	oldRelPath = filepath.ToSlash(strings.TrimSpace(oldRelPath))
+	newRelPath = filepath.ToSlash(strings.TrimSpace(newRelPath))
+	if oldRelPath == "" || oldRelPath == newRelPath {
+		return
+	}
+	prefix := "avatars/" + strings.TrimSpace(account) + "/"
+	if !strings.HasPrefix(oldRelPath, prefix) {
+		return
+	}
+	if s.uploadDir == "" {
+		return
+	}
+	oldAbsPath := filepath.Clean(filepath.Join(s.uploadDir, filepath.FromSlash(oldRelPath)))
+	uploadRoot := filepath.Clean(s.uploadDir)
+	if !strings.HasPrefix(oldAbsPath, uploadRoot+string(os.PathSeparator)) && oldAbsPath != uploadRoot {
+		return
+	}
+	_ = os.Remove(oldAbsPath)
 }
