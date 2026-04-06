@@ -65,6 +65,7 @@ func main() {
 	mux.HandleFunc("/get_music", musicH.GetMusic)
 	mux.HandleFunc("/music/artist", musicH.GetMusicByArtist)
 	mux.HandleFunc("/music/search", musicH.SearchMusic)
+	mux.HandleFunc("/music/health-test", musicH.HealthTest)
 	mux.HandleFunc("/artist/search", artistH.SearchArtist)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
