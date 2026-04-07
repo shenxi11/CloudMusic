@@ -41,6 +41,41 @@ load_env_file() {
   set +a
 }
 
+enforce_prod_repo_guard() {
+  load_env_file
+  local project_name
+  project_name="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT_DIR")}"
+  if [[ "$project_name" != "cloudmusic" ]]; then
+    return
+  fi
+
+  if ! command -v git >/dev/null 2>&1; then
+    echo "Error: git is required for the cloudmusic production workflow."
+    exit 1
+  fi
+
+  local branch
+  branch="$(git -C "$ROOT_DIR" branch --show-current)"
+  if [[ "$branch" != "main" ]]; then
+    echo "Error: cloudmusic 正式运行目录只能在 main 分支部署。当前分支: $branch"
+    echo "请先执行: git fetch origin && git checkout main && git pull --ff-only origin main"
+    exit 1
+  fi
+
+  local dirty
+  dirty="$(git -C "$ROOT_DIR" status --porcelain)"
+  if [[ -n "$dirty" ]]; then
+    echo "Error: cloudmusic 正式运行目录工作区必须干净后才能部署。"
+    echo "$dirty"
+    exit 1
+  fi
+
+  if ! git -C "$ROOT_DIR" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then
+    echo "Error: 无法访问 origin，请先检查网络或远端配置。"
+    exit 1
+  fi
+}
+
 ensure_data_dirs() {
   load_env_file
   (
@@ -91,6 +126,7 @@ shift || true
 case "$cmd" in
   up)
     ensure_env_file
+    enforce_prod_repo_guard
     render_config
     ensure_data_dirs
     compose build "$@"
@@ -103,6 +139,7 @@ case "$cmd" in
     ;;
   restart)
     ensure_env_file
+    enforce_prod_repo_guard
     render_config
     ensure_data_dirs
     compose down
@@ -124,6 +161,7 @@ case "$cmd" in
     ;;
   migrate)
     ensure_env_file
+    enforce_prod_repo_guard
     render_config
     compose run --rm migrator "$@"
     ;;
