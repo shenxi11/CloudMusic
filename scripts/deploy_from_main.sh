@@ -52,5 +52,12 @@ set +a
 
 health_url="http://127.0.0.1:${GATEWAY_PORT:-8080}/health"
 echo "Health check: $health_url"
-curl -fsS "$health_url"
-printf '\n'
+for attempt in $(seq 1 10); do
+  if curl -fsS "$health_url"; then
+    printf '\n'
+    exit 0
+  fi
+  sleep 2
+done
+
+fail "健康检查失败: $health_url"
