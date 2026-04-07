@@ -29,6 +29,7 @@ remote_local_deploy/
 .env*
 !.env.docker.example
 configs/config.docker.generated.yaml
+/package-lock.json
 
 # Database export artifacts (keep migration SQL under migrations/sql)
 PROJECT_DB*.sql

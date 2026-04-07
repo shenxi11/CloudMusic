@@ -1,5 +1,30 @@
 # 音乐平台微服务部署包
 
+## 双目录工作流
+
+推荐将本仓库按以下方式使用：
+
+- `/home/shen/microservice-deploy`
+  - 唯一开发仓库
+  - 允许功能分支开发、接口测试、临时 Docker 环境验证
+- `/home/shen/CloudMusic`
+  - 唯一正式运行目录
+  - 固定跟踪 `origin/main`
+  - 只允许拉取最新 `main` 后重建 `cloudmusic` 服务
+
+推荐正式部署命令：
+
+```bash
+cd /home/shen/CloudMusic
+./scripts/deploy_from_main.sh
+```
+
+说明：
+
+- `CloudMusic` 若不在 `main` 分支，脚本会拒绝部署
+- `CloudMusic` 若工作区不干净，脚本会拒绝部署
+- `microservice-deploy` 默认只作为开发测试环境，不作为正式运行环境
+
 ## 📁 目录结构
 
 ```
@@ -152,6 +177,12 @@ docs/openapi.yaml
 
 # 客户端启动连接接口文档
 docs/CLIENT_CONNECT_API.md
+
+# 客户端用户资料改造摘要
+docs/CLIENT_PROFILE_UPGRADE.md
+
+# 双目录开发与正式部署工作流
+docs/DEPLOY_WORKFLOW.md
 
 # 用户在线状态接口文档（会话+心跳+状态+下线）
 docs/ONLINE_PRESENCE_API.md
