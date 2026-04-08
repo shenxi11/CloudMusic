@@ -25,7 +25,7 @@ cd /home/shen/CloudMusic
 2. 校验工作区必须干净
 3. `git fetch origin`
 4. `git pull --ff-only origin main`
-5. 重建 `cloudmusic` 容器
+5. 调用 `./start_docker.sh` 部署 `cloudmusic`
 6. 输出 `/health` 健康检查结果
 
 ## 📋 部署前准备

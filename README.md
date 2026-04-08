@@ -184,6 +184,9 @@ docs/CLIENT_PROFILE_UPGRADE.md
 # 双目录开发与正式部署工作流
 docs/DEPLOY_WORKFLOW.md
 
+# 毕业论文参考用项目说明文档
+docs/PROJECT_THESIS_OVERVIEW.md
+
 # 用户在线状态接口文档（会话+心跳+状态+下线）
 docs/ONLINE_PRESENCE_API.md
 

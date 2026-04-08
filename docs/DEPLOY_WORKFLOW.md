@@ -52,7 +52,7 @@ cd /home/shen/CloudMusic
 3. 检查远端 `origin` 可访问
 4. 拉取最新 `origin/main`
 5. 生成 `configs/config.docker.generated.yaml`
-6. 重建 `cloudmusic` 容器
+6. 调用 `./start_docker.sh` 部署 `cloudmusic`
 7. 输出 `http://127.0.0.1:8080/health` 健康检查结果
 
 ## 禁止事项

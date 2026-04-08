@@ -4,8 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env.docker"
-RENDER_SCRIPT="$ROOT_DIR/scripts/docker/render_config.sh"
-DOCKER_SCRIPT="$ROOT_DIR/scripts/docker.sh"
+START_SCRIPT="$ROOT_DIR/start_docker.sh"
 
 fail() {
   echo "Error: $*" >&2
@@ -14,7 +13,7 @@ fail() {
 
 command -v git >/dev/null 2>&1 || fail "git 未安装"
 [[ -f "$ENV_FILE" ]] || fail "$ENV_FILE 不存在"
-[[ -x "$DOCKER_SCRIPT" ]] || fail "$DOCKER_SCRIPT 不可执行"
+[[ -x "$START_SCRIPT" ]] || fail "$START_SCRIPT 不可执行"
 
 branch="$(git -C "$ROOT_DIR" branch --show-current)"
 if [[ "$branch" != "main" ]]; then
@@ -30,20 +29,17 @@ if ! git -C "$ROOT_DIR" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then
   fail "无法访问 origin，请先检查仓库远端和网络"
 fi
 
-echo "[1/5] fetch origin"
+echo "[1/4] fetch origin"
 git -C "$ROOT_DIR" fetch origin
 
-echo "[2/5] checkout main"
+echo "[2/4] checkout main"
 git -C "$ROOT_DIR" checkout main
 
-echo "[3/5] pull latest main"
+echo "[3/4] pull latest main"
 git -C "$ROOT_DIR" pull --ff-only origin main
 
-echo "[4/5] render config"
-"$RENDER_SCRIPT" "$ENV_FILE"
-
-echo "[5/5] restart cloudmusic services"
-"$DOCKER_SCRIPT" restart
+echo "[4/4] deploy cloudmusic via start_docker.sh"
+"$START_SCRIPT"
 
 set -a
 # shellcheck disable=SC1090
