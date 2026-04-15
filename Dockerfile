@@ -1,20 +1,15 @@
-# syntax=docker/dockerfile:1.7
-
 FROM golang:1.22-bookworm AS builder
 
 WORKDIR /src
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+RUN go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    set -eux; \
+RUN set -eux; \
     mkdir -p /out; \
     for item in \
       "music_server:cmd/monolith/main.go" \
@@ -36,9 +31,7 @@ FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    apt-get update \
+RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates bash netcat-openbsd tzdata ffmpeg
 
 COPY --from=builder /out/ /app/
