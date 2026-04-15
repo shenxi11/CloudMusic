@@ -61,6 +61,7 @@ cd microservice-deploy
 #   SERVER_PUBLIC_BASE_URL=http://你的服务器IP或域名:8080
 #   ADMIN_USERNAME=后台管理员用户名
 #   ADMIN_PASSWORD=后台管理员密码
+#   JAMENDO_CLIENT_ID=你的Jamendo client_id（可选，启用外部独立音乐搜索）
 ./start_docker.sh
 
 # 4) 查看状态和日志
@@ -85,6 +86,7 @@ curl http://127.0.0.1:8080/videos
 说明：
 - Docker 模式会自动拉起 `MySQL + Redis + Gateway + 各微服务`。
 - 静态资源目录通过 `.env.docker` 的 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR` 配置，不需要改代码。
+- Jamendo 外部曲库通过 `JAMENDO_CLIENT_ID` 运行时环境变量启用；搜索结果只外链播放，不下载、不缓存、不写入本地曲库。
 - 如果数据库是空库，只会自动建表，不会自动生成业务数据；需自行导入数据或执行你的媒体入库脚本。
 - 同机部署多套环境时，修改 `.env.docker` 的 `COMPOSE_PROJECT_NAME`，避免复用旧容器和 volume。
 

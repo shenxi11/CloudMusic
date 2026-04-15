@@ -31,6 +31,7 @@ cp config.yaml.example config.yaml
 vim config.yaml  # 修改必要配置
 
 # 3) 启动服务
+export JAMENDO_CLIENT_ID="your_jamendo_client_id"  # 可选：启用 Jamendo 外部曲库
 ./start.sh
 ```
 
@@ -48,7 +49,23 @@ database:
 
 redis:
   addr: "localhost:6379"                   # Redis地址
+
+external:
+  jamendo:
+    enabled: true
+    client_id: ""                          # 推荐留空，运行时使用 JAMENDO_CLIENT_ID
 ```
+
+Jamendo 用于补充外部独立音乐搜索：
+
+```bash
+export JAMENDO_CLIENT_ID="your_jamendo_client_id"
+curl -X POST http://127.0.0.1:8080/external/music/jamendo/search \
+  -H 'Content-Type: application/json' \
+  -d '{"keyword":"mayday","limit":2}'
+```
+
+Jamendo 结果只外链播放，不下载、不缓存、不写入本地曲库。
 
 ### 3. 常用命令
 

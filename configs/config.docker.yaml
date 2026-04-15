@@ -45,6 +45,14 @@ schemas:
   catalog: "music_users"
   media: "music_media"
 
+external:
+  jamendo:
+    enabled: true
+    client_id: ""
+    base_url: "https://api.jamendo.com/v3.0"
+    timeout_sec: 8
+    default_limit: 20
+
 admin:
   username: "admin"
   password: "admin123456"

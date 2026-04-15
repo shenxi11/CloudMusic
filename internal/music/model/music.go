@@ -56,6 +56,30 @@ type SearchRequest struct {
 	Keyword string `json:"keyword"`
 }
 
+// ExternalMusicSearchRequest 外部音乐源搜索请求
+type ExternalMusicSearchRequest struct {
+	Keyword string `json:"keyword"`
+	Limit   int    `json:"limit,omitempty"`
+}
+
+// ExternalMusicTrack 外部音乐源曲目响应
+type ExternalMusicTrack struct {
+	Source          string  `json:"source"`
+	SourceID        string  `json:"source_id"`
+	Title           string  `json:"title"`
+	Artist          string  `json:"artist"`
+	Album           string  `json:"album,omitempty"`
+	DurationSec     float64 `json:"duration_sec,omitempty"`
+	StreamURL       string  `json:"stream_url"`
+	CoverArtURL     string  `json:"cover_art_url,omitempty"`
+	Lyrics          string  `json:"lyrics,omitempty"`
+	LicenseURL      string  `json:"license_url,omitempty"`
+	ShareURL        string  `json:"share_url,omitempty"`
+	DownloadAllowed bool    `json:"download_allowed"`
+	Explicit        bool    `json:"explicit"`
+	Lang            string  `json:"lang,omitempty"`
+}
+
 // MusicFileWithScore 带相关性评分的音乐文件
 type MusicFileWithScore struct {
 	MusicFile

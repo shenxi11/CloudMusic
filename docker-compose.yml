@@ -78,6 +78,7 @@ services:
       - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID:-}
     command: >
       /bin/bash -lc
       '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
@@ -133,6 +134,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       CATALOG_SERVICE_HOST: 0.0.0.0
       CATALOG_SERVICE_PORT: 18082
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID:-}
     command: >
       /bin/bash -lc
       '/app/scripts/docker/wait_for.sh mysql 3306 120 &&

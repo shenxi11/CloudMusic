@@ -20,6 +20,7 @@ import (
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/middleware"
 	"music-platform/internal/media/handler"
+	musicExternal "music-platform/internal/music/external"
 	musicHandler "music-platform/internal/music/handler"
 	musicRepo "music-platform/internal/music/repository"
 	musicService "music-platform/internal/music/service"
@@ -100,6 +101,7 @@ func main() {
 	// 7. 初始化服务层
 	userSvc := userService.NewUserService(userRepository, userMusicRepository, "", cfg.Server.UploadDir)
 	musicSvc := musicService.NewMusicService(musicRepository)
+	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
 	videoSvc := videoService.NewVideoService(cfg.Server.VideoDir)
 	artistSvc := artistService.NewArtistService(artistRepository)
 
@@ -135,6 +137,7 @@ func main() {
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 	userH := userHandler.NewUserHandler(userSvc)
 	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
+	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
 	mediaH := handler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema)
 	if err := mediaH.EnsureTables(); err != nil {
 		logger.Warn("初始化 media 表失败，将继续启动: %v", err)
@@ -175,6 +178,8 @@ func main() {
 	mux.HandleFunc("/music/artist", musicH.GetMusicByArtist) // 根据歌手查询音乐
 	mux.HandleFunc("/music/search", musicH.SearchMusic)      // 关键词搜索音乐
 	mux.HandleFunc("/music/health-test", musicH.HealthTest)
+	mux.HandleFunc("/external/music/jamendo/search", jamendoH.Search)
+	mux.HandleFunc("/external/music/jamendo/track", jamendoH.GetTrack)
 
 	// 歌手相关路由
 	mux.HandleFunc("/artist/search", artistH.SearchArtist) // 搜索歌手是否存在
@@ -370,6 +375,8 @@ func main() {
 	logger.Info("    GET  /get_music?path=xxx    - 获取音乐详情")
 	logger.Info("    POST /music/artist          - 根据歌手查询音乐")
 	logger.Info("    POST /music/search          - 关键词搜索音乐")
+	logger.Info("    POST /external/music/jamendo/search - Jamendo外部曲库搜索")
+	logger.Info("    GET  /external/music/jamendo/track?id=xxx - Jamendo曲目详情")
 	logger.Info("  歌手服务:")
 	logger.Info("    POST /artist/search         - 搜索歌手是否存在")
 	logger.Info("  视频服务:")

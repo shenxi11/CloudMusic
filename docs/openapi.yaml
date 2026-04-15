@@ -439,6 +439,66 @@ paths:
                 items:
                   $ref: "#/components/schemas/FileListItem"
 
+  /external/music/jamendo/search:
+    post:
+      tags: [catalog]
+      summary: Search Jamendo external music library
+      description: Real-time search against Jamendo. Results are not stored locally and stream_url points to Jamendo audio.
+      operationId: searchJamendoMusic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalMusicSearchRequest"
+            example:
+              keyword: mayday
+              limit: 20
+      responses:
+        "200":
+          description: Jamendo external music results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExternalMusicTrack"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "502":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelope"
+
+  /external/music/jamendo/track:
+    get:
+      tags: [catalog]
+      summary: Get Jamendo track detail
+      description: Fetch one Jamendo track by Jamendo track id. This does not download or cache audio.
+      operationId: getJamendoTrack
+      parameters:
+        - in: query
+          name: id
+          required: true
+          schema:
+            type: string
+          example: "1218138"
+      responses:
+        "200":
+          description: Jamendo external music detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalMusicTrack"
+        "400":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "404":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "502":
+          $ref: "#/components/responses/ErrorEnvelope"
+        "503":
+          $ref: "#/components/responses/ErrorEnvelope"
+
   /artist/search:
     post:
       tags: [catalog]
@@ -2056,6 +2116,52 @@ components:
       properties:
         keyword:
           type: string
+
+    ExternalMusicSearchRequest:
+      type: object
+      required: [keyword]
+      properties:
+        keyword:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+
+    ExternalMusicTrack:
+      type: object
+      properties:
+        source:
+          type: string
+          example: jamendo
+        source_id:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration_sec:
+          type: number
+          format: double
+        stream_url:
+          type: string
+        cover_art_url:
+          type: string
+        lyrics:
+          type: string
+        license_url:
+          type: string
+        share_url:
+          type: string
+        download_allowed:
+          type: boolean
+        explicit:
+          type: boolean
+        lang:
+          type: string
+      required: [source, source_id, title, artist, stream_url, download_allowed, explicit]
 
     ArtistExistsResponse:
       type: object

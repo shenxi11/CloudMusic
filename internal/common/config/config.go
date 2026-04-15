@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -76,6 +77,20 @@ type SchemaConfig struct {
 	Media   string `yaml:"media"`
 }
 
+// JamendoExternalConfig configures the Jamendo external music provider.
+type JamendoExternalConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	ClientID     string `yaml:"client_id"`
+	BaseURL      string `yaml:"base_url"`
+	TimeoutSec   int    `yaml:"timeout_sec"`
+	DefaultLimit int    `yaml:"default_limit"`
+}
+
+// ExternalConfig configures third-party music providers.
+type ExternalConfig struct {
+	Jamendo JamendoExternalConfig `yaml:"jamendo"`
+}
+
 // AdminConfig 管理后台配置
 type AdminConfig struct {
 	Username          string `yaml:"username"`
@@ -90,6 +105,7 @@ type Config struct {
 	Redis    RedisConfig    `yaml:"redis"`
 	Event    EventConfig    `yaml:"event"`
 	Schemas  SchemaConfig   `yaml:"schemas"`
+	External ExternalConfig `yaml:"external"`
 	Admin    AdminConfig    `yaml:"admin"`
 }
 
@@ -123,4 +139,37 @@ func MustLoad(configPath string) *Config {
 		panic(err)
 	}
 	return cfg
+}
+
+// ResolveJamendoConfig applies defaults and environment overrides.
+func ResolveJamendoConfig(cfg *Config) JamendoExternalConfig {
+	jamendo := JamendoExternalConfig{
+		Enabled:      true,
+		BaseURL:      "https://api.jamendo.com/v3.0",
+		TimeoutSec:   8,
+		DefaultLimit: 20,
+	}
+	if cfg != nil {
+		configured := cfg.External.Jamendo
+		jamendo.Enabled = configured.Enabled
+		if strings.TrimSpace(configured.ClientID) != "" {
+			jamendo.ClientID = strings.TrimSpace(configured.ClientID)
+		}
+		if strings.TrimSpace(configured.BaseURL) != "" {
+			jamendo.BaseURL = strings.TrimRight(strings.TrimSpace(configured.BaseURL), "/")
+		}
+		if configured.TimeoutSec > 0 {
+			jamendo.TimeoutSec = configured.TimeoutSec
+		}
+		if configured.DefaultLimit > 0 {
+			jamendo.DefaultLimit = configured.DefaultLimit
+		}
+	}
+
+	if envClientID := strings.TrimSpace(os.Getenv("JAMENDO_CLIENT_ID")); envClientID != "" {
+		jamendo.ClientID = envClientID
+		jamendo.Enabled = true
+	}
+
+	return jamendo
 }

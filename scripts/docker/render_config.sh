@@ -88,6 +88,14 @@ schemas:
   catalog: "$(yaml_escape "$DB_SCHEMA_CATALOG")"
   media: "$(yaml_escape "$DB_SCHEMA_MEDIA")"
 
+external:
+  jamendo:
+    enabled: true
+    client_id: ""
+    base_url: "https://api.jamendo.com/v3.0"
+    timeout_sec: 8
+    default_limit: 20
+
 admin:
   username: "$(yaml_escape "$ADMIN_USERNAME")"
   password: "$(yaml_escape "$ADMIN_PASSWORD")"

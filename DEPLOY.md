@@ -310,6 +310,22 @@ logging:
 storage:
   upload_dir: "./uploads"    # 上传文件目录
   max_upload_size: 100       # 最大上传大小（MB）
+
+# 外部曲库配置
+external:
+  jamendo:
+    enabled: true
+    client_id: ""            # 推荐留空，使用 JAMENDO_CLIENT_ID 环境变量
+    base_url: "https://api.jamendo.com/v3.0"
+    timeout_sec: 8
+    default_limit: 20
+```
+
+Jamendo 是外部独立音乐补充源，接口只返回 Jamendo 的播放链接、封面、歌词和授权信息，不会下载、缓存或写入本地曲库。启动前可通过环境变量启用：
+
+```bash
+export JAMENDO_CLIENT_ID="your_jamendo_client_id"
+./start.sh
 ```
 
 ---
@@ -377,6 +393,7 @@ After=network.target mysql.service redis.service
 Type=simple
 User=your-username
 WorkingDirectory=/path/to/microservice-deploy
+Environment=JAMENDO_CLIENT_ID=your_jamendo_client_id
 ExecStart=/path/to/microservice-deploy/music_server
 Restart=on-failure
 RestartSec=5

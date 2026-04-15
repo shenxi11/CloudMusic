@@ -15,6 +15,7 @@ import (
 	"music-platform/internal/common/database"
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/middleware"
+	musicExternal "music-platform/internal/music/external"
 	musicHandler "music-platform/internal/music/handler"
 	musicRepo "music-platform/internal/music/repository"
 	musicService "music-platform/internal/music/service"
@@ -54,8 +55,10 @@ func main() {
 	musicRepository := musicRepo.NewMusicRepository(db)
 	artistRepository := artistRepo.NewArtistRepository(db)
 	musicSvc := musicService.NewMusicService(musicRepository)
+	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
 	artistSvc := artistService.NewArtistService(artistRepository)
 	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
+	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 
 	mux := http.NewServeMux()
@@ -66,6 +69,8 @@ func main() {
 	mux.HandleFunc("/music/artist", musicH.GetMusicByArtist)
 	mux.HandleFunc("/music/search", musicH.SearchMusic)
 	mux.HandleFunc("/music/health-test", musicH.HealthTest)
+	mux.HandleFunc("/external/music/jamendo/search", jamendoH.Search)
+	mux.HandleFunc("/external/music/jamendo/track", jamendoH.GetTrack)
 	mux.HandleFunc("/artist/search", artistH.SearchArtist)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
