@@ -1,6 +1,7 @@
 .git
 .runtime
 .data
+.bench
 logs
 *.log
 *.pid
@@ -8,6 +9,8 @@ logs
 remote_local_deploy
 uploads
 docs
+web-player
+示例图片
 *.tar
 *.tar.gz
 .env*
@@ -21,3 +24,6 @@ media_server
 video_server
 event_worker
 migrator
+media_indexer
+profile
+monolith

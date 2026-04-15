@@ -19,6 +19,22 @@ cd /home/shen/CloudMusic
 ./scripts/deploy_from_main.sh
 ```
 
+自动部署行为：
+
+- 只拉到文档或开发辅助文件变更时：只更新工作树，不重启容器
+- 只拉到 Nginx / 运行时配置生成脚本变更时：跳过 build，执行 `--no-build --force-recreate`
+- 拉到 Go 源码、`Dockerfile`、`docker-compose.yml` 等镜像相关变更时：自动 build 后部署
+
+强制模式：
+
+```bash
+# 无条件 build 后部署
+./scripts/deploy_from_main.sh --force-build
+
+# 无条件跳过 build，但强制重建容器
+./scripts/deploy_from_main.sh --no-build
+```
+
 说明：
 
 - `CloudMusic` 若不在 `main` 分支，脚本会拒绝部署
@@ -68,6 +84,14 @@ cd microservice-deploy
 ./scripts/docker.sh ps
 ./scripts/docker.sh logs gateway
 
+# 代码未变、只想重启已有镜像时可跳过构建
+./start_docker.sh --no-build
+# 或
+SKIP_DOCKER_BUILD=1 ./start_docker.sh
+
+# 正式部署脚本也支持显式跳过 build
+./scripts/deploy_from_main.sh --no-build
+
 # 5) 健康检查
 curl http://127.0.0.1:8080/health
 curl http://127.0.0.1:8080/client/ping
@@ -85,6 +109,7 @@ curl http://127.0.0.1:8080/videos
 
 说明：
 - Docker 模式会自动拉起 `MySQL + Redis + Gateway + 各微服务`。
+- 默认启动会构建后端镜像；日常只重启容器时使用 `--no-build` 可明显加快启动。
 - 静态资源目录通过 `.env.docker` 的 `HOST_UPLOAD_DIR/HOST_VIDEO_DIR/HOST_HLS_DIR` 配置，不需要改代码。
 - Jamendo 外部曲库通过 `JAMENDO_CLIENT_ID` 运行时环境变量启用；搜索结果只外链播放，不下载、不缓存、不写入本地曲库。
 - 如果数据库是空库，只会自动建表，不会自动生成业务数据；需自行导入数据或执行你的媒体入库脚本。

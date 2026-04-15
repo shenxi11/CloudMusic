@@ -79,6 +79,15 @@ Jamendo 结果只外链播放，不下载、不缓存、不写入本地曲库。
 # 重启服务
 ./stop.sh && ./start.sh
 
+# Docker 模式只重启已有镜像，跳过重新构建
+./start_docker.sh --no-build
+
+# 正式部署目录自动判断是否需要重建镜像
+./scripts/deploy_from_main.sh
+
+# 明确要求跳过构建并重建容器
+./scripts/deploy_from_main.sh --no-build
+
 # 查看日志
 tail -f logs/server.log
 

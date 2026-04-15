@@ -8,14 +8,18 @@ ENV_FILE="$ROOT_DIR/.env.docker"
 ENV_EXAMPLE="$ROOT_DIR/.env.docker.example"
 RENDER_SCRIPT="$ROOT_DIR/scripts/docker/render_config.sh"
 
+export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+
 usage() {
   cat <<USAGE
 Usage: ./scripts/docker.sh <command> [args]
 
 Commands:
-  up            Build and start full stack in background
+  up [--no-build]
+                Build and start full stack in background
   down          Stop and remove containers
-  restart       Restart full stack
+  restart [--no-build]
+                Restart full stack
   logs [svc]    Follow logs (all services or specific service)
   ps            Show container status
   config        Render and print compose config
@@ -120,8 +124,33 @@ render_config() {
   "$RENDER_SCRIPT" "$ENV_FILE"
 }
 
+build_enabled() {
+  if [[ "${SKIP_DOCKER_BUILD:-}" == "1" ]]; then
+    return 1
+  fi
+  return 0
+}
+
+strip_no_build_flag() {
+  local -n args_ref=$1
+  local out=()
+  for arg in "${args_ref[@]}"; do
+    case "$arg" in
+      --no-build)
+        SKIP_DOCKER_BUILD=1
+        ;;
+      *)
+        out+=("$arg")
+        ;;
+    esac
+  done
+  args_ref=("${out[@]}")
+}
+
 cmd="${1:-up}"
 shift || true
+args=("$@")
+strip_no_build_flag args
 
 case "$cmd" in
   up)
@@ -129,8 +158,12 @@ case "$cmd" in
     enforce_prod_repo_guard
     render_config
     ensure_data_dirs
-    compose build "$@"
-    compose up -d "$@"
+    if build_enabled; then
+      compose build "${args[@]}"
+    else
+      echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
+    fi
+    compose up -d "${args[@]}"
     echo "Gateway: http://127.0.0.1:${GATEWAY_PORT:-8080}"
     ;;
   down)
@@ -143,45 +176,49 @@ case "$cmd" in
     render_config
     ensure_data_dirs
     compose down
-    compose build "$@"
-    compose up -d "$@"
+    if build_enabled; then
+      compose build "${args[@]}"
+    else
+      echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
+    fi
+    compose up -d "${args[@]}"
     ;;
   logs)
     ensure_env_file
-    compose logs -f --tail=200 "$@"
+    compose logs -f --tail=200 "${args[@]}"
     ;;
   ps)
     ensure_env_file
-    compose ps "$@"
+    compose ps "${args[@]}"
     ;;
   config)
     ensure_env_file
     render_config
-    compose config "$@"
+    compose config "${args[@]}"
     ;;
   migrate)
     ensure_env_file
     enforce_prod_repo_guard
     render_config
-    compose run --rm migrator "$@"
+    compose run --rm migrator "${args[@]}"
     ;;
   sync-media)
     ensure_env_file
     render_config
     ensure_data_dirs
-    if [[ $# -eq 0 ]]; then
+    if [[ ${#args[@]} -eq 0 ]]; then
       compose run --rm music-server /app/media_indexer \
         -config /app/configs/config.yaml \
         -audio-dir /data/uploads \
         -video-dir /data/video
     else
-      compose run --rm music-server /app/media_indexer "$@"
+      compose run --rm music-server /app/media_indexer "${args[@]}"
     fi
     ;;
   build)
     ensure_env_file
     render_config
-    compose build "$@"
+    compose build "${args[@]}"
     ;;
   help|-h|--help)
     usage

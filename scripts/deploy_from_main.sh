@@ -6,9 +6,163 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT_DIR/.env.docker"
 START_SCRIPT="$ROOT_DIR/start_docker.sh"
 
+DEPLOY_MODE="auto"
+START_ARGS=()
+CHANGED_FILES=()
+DEPLOY_STRATEGY=""
+
+BUILD_REQUIRED_PATTERNS=(
+  ".dockerignore"
+  "Dockerfile"
+  "docker-compose.yml"
+  "go.mod"
+  "go.sum"
+  "cmd/"
+  "internal/"
+  "pkg/"
+  "migrations/sql/"
+  "scripts/docker/wait_for.sh"
+  "configs/config.docker.yaml"
+)
+
+RECREATE_ONLY_PATTERNS=(
+  "deploy/nginx/nginx.docker.conf"
+  "scripts/docker/render_config.sh"
+)
+
 fail() {
   echo "Error: $*" >&2
   exit 1
+}
+
+usage() {
+  cat <<USAGE
+Usage: ./scripts/deploy_from_main.sh [--force-build | --no-build] [extra start_docker args]
+
+Modes:
+  default / auto  自动根据拉取到的文件变化决定:
+                  - 仅文档/辅助文件变化: 不重启
+                  - 仅运行时配置变化:   --no-build --force-recreate
+                  - 镜像/源码变化:      --force-recreate
+  --force-build   无条件执行构建后部署
+  --no-build      无条件跳过构建并重建容器
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --force-build)
+      [[ "$DEPLOY_MODE" == "auto" ]] || fail "不能同时指定 --force-build 和 --no-build"
+      DEPLOY_MODE="force-build"
+      ;;
+    --no-build)
+      [[ "$DEPLOY_MODE" == "auto" ]] || fail "不能同时指定 --force-build 和 --no-build"
+      DEPLOY_MODE="no-build"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      START_ARGS+=("$1")
+      ;;
+  esac
+  shift
+done
+
+matches_prefix() {
+  local path="$1"
+  shift
+  local pattern
+  for pattern in "$@"; do
+    if [[ "$pattern" == */ ]]; then
+      [[ "$path" == "$pattern"* ]] && return 0
+      continue
+    fi
+    [[ "$path" == "$pattern" ]] && return 0
+  done
+  return 1
+}
+
+detect_deploy_strategy() {
+  local old_head="$1"
+  local new_head="$2"
+
+  CHANGED_FILES=()
+  mapfile -t CHANGED_FILES < <(git -C "$ROOT_DIR" diff --name-only "$old_head..$new_head")
+
+  if [[ ${#CHANGED_FILES[@]} -eq 0 ]]; then
+    DEPLOY_STRATEGY="no-change"
+    return 0
+  fi
+
+  local file
+  local requires_build=0
+  local requires_recreate=0
+  local has_runtime_change=0
+
+  for file in "${CHANGED_FILES[@]}"; do
+    if matches_prefix "$file" "${BUILD_REQUIRED_PATTERNS[@]}"; then
+      requires_build=1
+      has_runtime_change=1
+      continue
+    fi
+    if matches_prefix "$file" "${RECREATE_ONLY_PATTERNS[@]}"; then
+      requires_recreate=1
+      has_runtime_change=1
+    fi
+  done
+
+  if (( requires_build )); then
+    DEPLOY_STRATEGY="build-required"
+    return 0
+  fi
+  if (( requires_recreate )); then
+    DEPLOY_STRATEGY="recreate-only"
+    return 0
+  fi
+  if (( has_runtime_change == 0 )); then
+    DEPLOY_STRATEGY="no-runtime-impact"
+    return 0
+  fi
+
+  DEPLOY_STRATEGY="no-runtime-impact"
+}
+
+print_changed_files() {
+  if [[ ${#CHANGED_FILES[@]} -eq 0 ]]; then
+    echo "Changed files: <none>"
+    return 0
+  fi
+  echo "Changed files:"
+  printf '  %s\n' "${CHANGED_FILES[@]}"
+}
+
+run_start_script() {
+  local mode="$1"
+  shift || true
+
+  case "$mode" in
+    build-required|force-build)
+      echo "[4/4] deploy cloudmusic via start_docker.sh --force-recreate"
+      "$START_SCRIPT" --force-recreate "$@"
+      ;;
+    recreate-only|no-build)
+      echo "[4/4] deploy cloudmusic via start_docker.sh --no-build --force-recreate"
+      "$START_SCRIPT" --no-build --force-recreate "$@"
+      ;;
+    no-runtime-impact)
+      echo "[4/4] no runtime-impact changes detected; skip container restart"
+      return 0
+      ;;
+    no-change)
+      echo "[4/4] no new commits detected after pull; skip deployment"
+      return 0
+      ;;
+    *)
+      fail "未知部署策略: $mode"
+      ;;
+  esac
 }
 
 command -v git >/dev/null 2>&1 || fail "git 未安装"
@@ -29,6 +183,8 @@ if ! git -C "$ROOT_DIR" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then
   fail "无法访问 origin，请先检查仓库远端和网络"
 fi
 
+old_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+
 echo "[1/4] fetch origin"
 git -C "$ROOT_DIR" fetch origin
 
@@ -38,8 +194,35 @@ git -C "$ROOT_DIR" checkout main
 echo "[3/4] pull latest main"
 git -C "$ROOT_DIR" pull --ff-only origin main
 
-echo "[4/4] deploy cloudmusic via start_docker.sh"
-"$START_SCRIPT"
+new_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+
+if [[ "$new_head" == "$old_head" && "$DEPLOY_MODE" == "auto" ]]; then
+  DEPLOY_STRATEGY="no-change"
+else
+  case "$DEPLOY_MODE" in
+    auto)
+      echo "[4/4] detect runtime impact from pulled commits"
+      detect_deploy_strategy "$old_head" "$new_head"
+      print_changed_files
+      ;;
+    force-build)
+      DEPLOY_STRATEGY="force-build"
+      ;;
+    no-build)
+      DEPLOY_STRATEGY="no-build"
+      ;;
+    *)
+      fail "未知部署模式: $DEPLOY_MODE"
+      ;;
+  esac
+fi
+
+echo "$DEPLOY_STRATEGY"
+run_start_script "$DEPLOY_STRATEGY" "${START_ARGS[@]}"
+
+if [[ "$DEPLOY_STRATEGY" == "no-change" || "$DEPLOY_STRATEGY" == "no-runtime-impact" ]]; then
+  exit 0
+fi
 
 set -a
 # shellcheck disable=SC1090

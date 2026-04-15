@@ -1,30 +1,45 @@
+# syntax=docker/dockerfile:1.7
+
 FROM golang:1.22-bookworm AS builder
 
 WORKDIR /src
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
-COPY . .
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
 
-RUN mkdir -p /out \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/music_server cmd/monolith/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/auth_server cmd/auth/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/catalog_server cmd/catalog/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/profile_server cmd/profile/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/media_server cmd/media/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/video_server cmd/video/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/event_worker cmd/eventworker/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/migrator cmd/migrator/main.go \
-    && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /out/media_indexer cmd/mediaindexer/main.go
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    set -eux; \
+    mkdir -p /out; \
+    for item in \
+      "music_server:cmd/monolith/main.go" \
+      "auth_server:cmd/auth/main.go" \
+      "catalog_server:cmd/catalog/main.go" \
+      "profile_server:cmd/profile/main.go" \
+      "media_server:cmd/media/main.go" \
+      "video_server:cmd/video/main.go" \
+      "event_worker:cmd/eventworker/main.go" \
+      "migrator:cmd/migrator/main.go" \
+      "media_indexer:cmd/mediaindexer/main.go"; \
+    do \
+      name="${item%%:*}"; \
+      main="${item#*:}"; \
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "/out/${name}" "${main}"; \
+    done
 
 FROM debian:bookworm-slim AS runtime
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates bash netcat-openbsd tzdata ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates bash netcat-openbsd tzdata ffmpeg
 
 COPY --from=builder /out/ /app/
 COPY scripts/docker/wait_for.sh /app/scripts/docker/wait_for.sh
