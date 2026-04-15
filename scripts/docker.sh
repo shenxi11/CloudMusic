@@ -147,10 +147,27 @@ strip_no_build_flag() {
   args_ref=("${out[@]}")
 }
 
+strip_build_incompatible_flags() {
+  local -n args_ref=$1
+  local out=()
+  for arg in "${args_ref[@]}"; do
+    case "$arg" in
+      --force-recreate|--no-recreate|--renew-anon-volumes|-V)
+        ;;
+      *)
+        out+=("$arg")
+        ;;
+    esac
+  done
+  args_ref=("${out[@]}")
+}
+
 cmd="${1:-up}"
 shift || true
 args=("$@")
 strip_no_build_flag args
+build_args=("${args[@]}")
+strip_build_incompatible_flags build_args
 
 case "$cmd" in
   up)
@@ -159,7 +176,7 @@ case "$cmd" in
     render_config
     ensure_data_dirs
     if build_enabled; then
-      compose build "${args[@]}"
+      compose build "${build_args[@]}"
     else
       echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
     fi
@@ -177,7 +194,7 @@ case "$cmd" in
     ensure_data_dirs
     compose down
     if build_enabled; then
-      compose build "${args[@]}"
+      compose build "${build_args[@]}"
     else
       echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
     fi
