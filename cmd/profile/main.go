@@ -16,6 +16,7 @@ import (
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/middleware"
 	"music-platform/internal/common/outbox"
+	musicExternal "music-platform/internal/music/external"
 	playlistHandler "music-platform/internal/playlist/handler"
 	playlistRepo "music-platform/internal/playlist/repository"
 	playlistService "music-platform/internal/playlist/service"
@@ -95,8 +96,9 @@ func main() {
 		defer publisher.Close()
 	}
 
-	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, publisher, outboxStore)
-	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, publisher, outboxStore)
+	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
+	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, publisher, outboxStore, jamendoSvc)
+	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, publisher, outboxStore, jamendoSvc)
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 
 	if publisher != nil && outboxStore != nil {

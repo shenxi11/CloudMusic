@@ -3,9 +3,12 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
+	"music-platform/internal/music/compat"
+	"music-platform/internal/music/external"
 	"music-platform/internal/music/model"
 	"music-platform/internal/music/service"
 	"music-platform/pkg/response"
@@ -13,15 +16,17 @@ import (
 
 // MusicHandler 音乐处理器
 type MusicHandler struct {
-	musicService service.MusicService
-	baseURL      string
+	musicService   service.MusicService
+	jamendoService external.JamendoService
+	baseURL        string
 }
 
 // NewMusicHandler 创建音乐处理器
-func NewMusicHandler(musicService service.MusicService, baseURL string) *MusicHandler {
+func NewMusicHandler(musicService service.MusicService, jamendoService external.JamendoService, baseURL string) *MusicHandler {
 	return &MusicHandler{
-		musicService: musicService,
-		baseURL:      baseURL,
+		musicService:   musicService,
+		jamendoService: jamendoService,
+		baseURL:        baseURL,
 	}
 }
 
@@ -86,6 +91,18 @@ func (h *MusicHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sourceID, ok := compat.ParseJamendoSourceID(filename); ok {
+		track, err := h.resolveJamendoTrack(r, sourceID)
+		if err != nil {
+			h.writeJamendoError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(compat.BuildMusicResponseFromExternalTrack(track))
+		return
+	}
+
 	musicResp, err := h.musicService.GetMusicByFilename(r.Context(), filename, h.baseURL)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -105,6 +122,18 @@ func (h *MusicHandler) GetMusic(w http.ResponseWriter, r *http.Request) {
 	musicPath := r.URL.Query().Get("path")
 	if musicPath == "" {
 		response.BadRequest(w, "path参数不能为空")
+		return
+	}
+
+	if sourceID, ok := compat.ParseJamendoSourceID(musicPath); ok {
+		track, err := h.resolveJamendoTrack(r, sourceID)
+		if err != nil {
+			h.writeJamendoError(w, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(compat.BuildMusicResponseFromExternalTrack(track))
 		return
 	}
 
@@ -211,4 +240,24 @@ func (h *MusicHandler) HealthTest(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"route":   r.URL.Path,
 	})
+}
+
+func (h *MusicHandler) resolveJamendoTrack(r *http.Request, sourceID string) (*model.ExternalMusicTrack, error) {
+	if h.jamendoService == nil || !h.jamendoService.IsConfigured() {
+		return nil, external.ErrNotConfigured
+	}
+	return h.jamendoService.GetTrack(r.Context(), sourceID)
+}
+
+func (h *MusicHandler) writeJamendoError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, external.ErrNotConfigured):
+		response.Error(w, http.StatusServiceUnavailable, "Jamendo external music source is not configured")
+	case errors.Is(err, external.ErrNotFound), errors.Is(err, sql.ErrNoRows):
+		response.NotFound(w, "Jamendo track not found")
+	case errors.Is(err, external.ErrUpstream):
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+	default:
+		response.InternalServerError(w, "Jamendo external music request failed")
+	}
 }

@@ -100,8 +100,8 @@ func main() {
 
 	// 7. 初始化服务层
 	userSvc := userService.NewUserService(userRepository, userMusicRepository, "", cfg.Server.UploadDir)
-	musicSvc := musicService.NewMusicService(musicRepository)
 	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
+	musicSvc := musicService.NewMusicService(musicRepository, jamendoSvc)
 	videoSvc := videoService.NewVideoService(cfg.Server.VideoDir)
 	artistSvc := artistService.NewArtistService(artistRepository)
 
@@ -132,13 +132,13 @@ func main() {
 		mediaSchema = "music_media"
 	}
 
-	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil)
-	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil)
+	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil, jamendoSvc)
+	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil, jamendoSvc)
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 	userH := userHandler.NewUserHandler(userSvc)
-	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
+	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, baseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
-	mediaH := handler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema)
+	mediaH := handler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema, jamendoSvc)
 	if err := mediaH.EnsureTables(); err != nil {
 		logger.Warn("初始化 media 表失败，将继续启动: %v", err)
 	} else if err := mediaH.SyncLyricsMap(); err != nil {

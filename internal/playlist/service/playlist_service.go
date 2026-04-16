@@ -8,23 +8,37 @@ import (
 	"music-platform/internal/common/eventbus"
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/outbox"
+	"music-platform/internal/music/compat"
+	"music-platform/internal/music/external"
 	"music-platform/internal/playlist/model"
-	"music-platform/internal/playlist/repository"
 )
 
 type PlaylistService struct {
-	repo      *repository.PlaylistRepository
-	baseURL   string
-	publisher eventbus.Publisher
-	outbox    *outbox.Store
+	repo           playlistRepository
+	baseURL        string
+	publisher      eventbus.Publisher
+	outbox         *outbox.Store
+	jamendoService external.JamendoService
 }
 
-func NewPlaylistService(repo *repository.PlaylistRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store) *PlaylistService {
+type playlistRepository interface {
+	CreatePlaylist(userAccount string, req model.CreatePlaylistRequest) (int64, error)
+	ListPlaylists(userAccount string, page, pageSize int) ([]model.Playlist, int, error)
+	GetPlaylistDetail(userAccount string, playlistID int64) (*model.Playlist, []model.PlaylistItemRecord, error)
+	UpdatePlaylist(userAccount string, playlistID int64, req model.UpdatePlaylistRequest) error
+	DeletePlaylist(userAccount string, playlistID int64) error
+	AddPlaylistItems(userAccount string, playlistID int64, items []model.PlaylistTrackInput) (int64, int64, error)
+	RemovePlaylistItems(userAccount string, playlistID int64, musicPaths []string) (int64, error)
+	ReorderPlaylistItems(userAccount string, playlistID int64, items []model.PlaylistReorderItem) error
+}
+
+func NewPlaylistService(repo playlistRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store, jamendoService external.JamendoService) *PlaylistService {
 	return &PlaylistService{
-		repo:      repo,
-		baseURL:   strings.TrimSuffix(baseURL, "/"),
-		publisher: publisher,
-		outbox:    outboxStore,
+		repo:           repo,
+		baseURL:        strings.TrimSuffix(baseURL, "/"),
+		publisher:      publisher,
+		outbox:         outboxStore,
+		jamendoService: jamendoService,
 	}
 }
 
@@ -115,6 +129,10 @@ func (s *PlaylistService) GetPlaylistDetail(userAccount string, playlistID int64
 		Items:            make([]model.PlaylistItem, 0, len(items)),
 	}
 	for _, item := range items {
+		coverURL := s.buildAssetURL(item.CoverArtPath)
+		if coverURL == "" && !item.IsLocal {
+			coverURL = s.resolveJamendoCoverURL(context.Background(), item.MusicPath)
+		}
 		result.Items = append(result.Items, model.PlaylistItem{
 			ID:          item.ID,
 			Position:    item.Position,
@@ -124,7 +142,7 @@ func (s *PlaylistService) GetPlaylistDetail(userAccount string, playlistID int64
 			Album:       item.Album,
 			DurationSec: item.DurationSec,
 			IsLocal:     item.IsLocal,
-			CoverArtURL: s.buildAssetURL(item.CoverArtPath),
+			CoverArtURL: coverURL,
 			AddedAt:     formatTime(item.CreatedAt),
 		})
 	}
@@ -253,6 +271,24 @@ func (s *PlaylistService) buildAssetURL(path string) string {
 		return s.baseURL + trimmed
 	}
 	return s.baseURL + "/uploads/" + strings.TrimPrefix(trimmed, "/")
+}
+
+func (s *PlaylistService) resolveJamendoCoverURL(ctx context.Context, musicPath string) string {
+	if s.jamendoService == nil || !s.jamendoService.IsConfigured() {
+		return ""
+	}
+
+	sourceID, ok := compat.ParseJamendoSourceID(musicPath)
+	if !ok {
+		return ""
+	}
+
+	track, err := s.jamendoService.GetTrack(ctx, sourceID)
+	if err != nil {
+		logger.Warn("Jamendo playlist cover lookup failed for path %q: %v", musicPath, err)
+		return ""
+	}
+	return strings.TrimSpace(track.CoverArtURL)
 }
 
 func formatTime(t interface{ Format(string) string }) string {

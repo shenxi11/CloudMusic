@@ -7,6 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"music-platform/internal/common/logger"
+	"music-platform/internal/music/compat"
+	"music-platform/internal/music/external"
 	"music-platform/internal/music/model"
 	"music-platform/internal/music/repository"
 )
@@ -21,13 +24,15 @@ type MusicService interface {
 }
 
 type musicService struct {
-	musicRepo repository.MusicRepository
+	musicRepo      repository.MusicRepository
+	jamendoService external.JamendoService
 }
 
 // NewMusicService 创建音乐服务
-func NewMusicService(musicRepo repository.MusicRepository) MusicService {
+func NewMusicService(musicRepo repository.MusicRepository, jamendoService external.JamendoService) MusicService {
 	return &musicService{
-		musicRepo: musicRepo,
+		musicRepo:      musicRepo,
+		jamendoService: jamendoService,
 	}
 }
 
@@ -145,6 +150,44 @@ func (s *musicService) GetMusicByArtist(ctx context.Context, artist string, base
 
 // SearchMusic 根据关键词搜索音乐，按相关性排序
 func (s *musicService) SearchMusic(ctx context.Context, keyword string, baseURL string) ([]*model.FileListItem, error) {
+	switch compat.DetectSearchPreference(keyword) {
+	case compat.SearchPreferenceJamendoFirst:
+		return s.searchJamendoThenLocal(ctx, keyword, baseURL)
+	default:
+		return s.searchLocalThenJamendo(ctx, keyword, baseURL)
+	}
+}
+
+func (s *musicService) searchLocalThenJamendo(ctx context.Context, keyword string, baseURL string) ([]*model.FileListItem, error) {
+	localItems, err := s.searchLocalMusic(ctx, keyword, baseURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(localItems) > 0 {
+		return localItems, nil
+	}
+
+	jamendoItems, err := s.searchJamendoMusic(ctx, keyword)
+	if err != nil {
+		logger.Warn("Jamendo fallback search failed for keyword %q: %v", keyword, err)
+		return make([]*model.FileListItem, 0), nil
+	}
+	return jamendoItems, nil
+}
+
+func (s *musicService) searchJamendoThenLocal(ctx context.Context, keyword string, baseURL string) ([]*model.FileListItem, error) {
+	jamendoItems, err := s.searchJamendoMusic(ctx, keyword)
+	if err == nil && len(jamendoItems) > 0 {
+		return jamendoItems, nil
+	}
+	if err != nil {
+		logger.Warn("Jamendo primary search failed for keyword %q: %v", keyword, err)
+	}
+
+	return s.searchLocalMusic(ctx, keyword, baseURL)
+}
+
+func (s *musicService) searchLocalMusic(ctx context.Context, keyword string, baseURL string) ([]*model.FileListItem, error) {
 	musicFiles, err := s.musicRepo.SearchByKeyword(ctx, keyword)
 	if err != nil {
 		return nil, fmt.Errorf("搜索音乐失败: %w", err)
@@ -192,6 +235,26 @@ func (s *musicService) SearchMusic(ctx context.Context, keyword string, baseURL 
 	}
 
 	return fileList, nil
+}
+
+func (s *musicService) searchJamendoMusic(ctx context.Context, keyword string) ([]*model.FileListItem, error) {
+	if s.jamendoService == nil || !s.jamendoService.IsConfigured() {
+		return make([]*model.FileListItem, 0), nil
+	}
+
+	tracks, err := s.jamendoService.Search(ctx, keyword, 20)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*model.FileListItem, 0, len(tracks))
+	for _, track := range tracks {
+		item := compat.BuildFileListItemFromExternalTrack(track)
+		if item != nil {
+			items = append(items, item)
+		}
+	}
+	return items, nil
 }
 
 // calculateRelevanceScore 计算相关性评分

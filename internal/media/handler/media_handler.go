@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"music-platform/internal/common/logger"
+	"music-platform/internal/music/compat"
+	"music-platform/internal/music/external"
 	"music-platform/pkg/response"
 )
 
@@ -20,8 +23,11 @@ var mediaIdentifierPattern = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
 // MediaHandler 媒体文件处理器
 type MediaHandler struct {
-	uploadDir string
-	db        *sql.DB
+	uploadDir  string
+	db         *sql.DB
+	httpClient *http.Client
+
+	jamendoService external.JamendoService
 
 	mediaSchema       string
 	catalogSchema     string
@@ -30,12 +36,14 @@ type MediaHandler struct {
 }
 
 // NewMediaHandler 创建媒体处理器
-func NewMediaHandler(uploadDir string, db *sql.DB, mediaSchema, catalogSchema string) *MediaHandler {
+func NewMediaHandler(uploadDir string, db *sql.DB, mediaSchema, catalogSchema string, jamendoService external.JamendoService) *MediaHandler {
 	mSchema := normalizeMediaSchema(mediaSchema, "music_media")
 	cSchema := normalizeMediaSchema(catalogSchema, "music_users")
 	return &MediaHandler{
 		uploadDir:         uploadDir,
 		db:                db,
+		httpClient:        http.DefaultClient,
+		jamendoService:    jamendoService,
 		mediaSchema:       mSchema,
 		catalogSchema:     cSchema,
 		mediaLyricsTable:  qualifiedMediaTable(mSchema, "media_lyrics_map"),
@@ -359,8 +367,80 @@ func (h *MediaHandler) DownloadQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sourceID, ok := compat.ParseJamendoSourceID(path); ok {
+		h.downloadJamendo(w, r, path, sourceID)
+		return
+	}
+
 	r.URL.Path = "/files/" + path
 	h.Download(w, r)
+}
+
+func (h *MediaHandler) downloadJamendo(w http.ResponseWriter, r *http.Request, virtualPath, sourceID string) {
+	if h.jamendoService == nil || !h.jamendoService.IsConfigured() {
+		response.Error(w, http.StatusServiceUnavailable, "Jamendo external music source is not configured")
+		return
+	}
+
+	track, err := h.jamendoService.GetTrack(r.Context(), sourceID)
+	if err != nil {
+		h.writeJamendoError(w, err)
+		return
+	}
+	if !track.DownloadAllowed {
+		response.Error(w, http.StatusForbidden, "Jamendo track download is not allowed")
+		return
+	}
+	if strings.TrimSpace(track.StreamURL) == "" {
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+		return
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, track.StreamURL, nil)
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+		return
+	}
+
+	res, err := h.httpClient.Do(req)
+	if err != nil {
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusMultipleChoices {
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+		return
+	}
+
+	contentType := res.Header.Get("Content-Type")
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "audio/mpeg"
+	}
+
+	filename := filepath.Base(virtualPath)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Cache-Control", "no-store")
+	if contentLength := res.Header.Get("Content-Length"); contentLength != "" {
+		w.Header().Set("Content-Length", contentLength)
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, res.Body)
+}
+
+func (h *MediaHandler) writeJamendoError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, external.ErrNotConfigured):
+		response.Error(w, http.StatusServiceUnavailable, "Jamendo external music source is not configured")
+	case errors.Is(err, external.ErrNotFound), errors.Is(err, sql.ErrNoRows):
+		response.NotFound(w, "Jamendo track not found")
+	case errors.Is(err, external.ErrUpstream):
+		response.Error(w, http.StatusBadGateway, "Jamendo upstream request failed")
+	default:
+		response.InternalServerError(w, "Jamendo external music request failed")
+	}
 }
 
 func normalizeMediaSchema(schema, fallback string) string {

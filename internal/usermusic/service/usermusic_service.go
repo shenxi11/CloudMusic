@@ -8,23 +8,37 @@ import (
 	"music-platform/internal/common/eventbus"
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/outbox"
+	"music-platform/internal/music/compat"
+	"music-platform/internal/music/external"
 	"music-platform/internal/usermusic/model"
-	"music-platform/internal/usermusic/repository"
 )
 
 type UserMusicService struct {
-	repo      *repository.UserMusicRepository
-	baseURL   string
-	publisher eventbus.Publisher
-	outbox    *outbox.Store
+	repo           userMusicRepository
+	baseURL        string
+	publisher      eventbus.Publisher
+	outbox         *outbox.Store
+	jamendoService external.JamendoService
 }
 
-func NewUserMusicService(repo *repository.UserMusicRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store) *UserMusicService {
+type userMusicRepository interface {
+	AddFavorite(userAccount string, req model.AddFavoriteRequest) error
+	RemoveFavorite(userAccount, musicPath string) error
+	ListFavorites(userAccount string) ([]model.FavoriteMusic, error)
+	AddPlayHistory(userAccount string, req model.AddPlayHistoryRequest) error
+	ListPlayHistory(userAccount string, limit int) ([]model.PlayHistory, error)
+	ListPlayHistoryDistinct(userAccount string, limit int) ([]model.PlayHistory, error)
+	DeletePlayHistory(userAccount string, musicPaths []string) (int64, error)
+	ClearPlayHistory(userAccount string) (int64, error)
+}
+
+func NewUserMusicService(repo userMusicRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store, jamendoService external.JamendoService) *UserMusicService {
 	return &UserMusicService{
-		repo:      repo,
-		baseURL:   baseURL,
-		publisher: publisher,
-		outbox:    outboxStore,
+		repo:           repo,
+		baseURL:        baseURL,
+		publisher:      publisher,
+		outbox:         outboxStore,
+		jamendoService: jamendoService,
 	}
 }
 
@@ -100,6 +114,10 @@ func (s *UserMusicService) ListFavorites(userAccount string) ([]model.MusicItem,
 		if !fav.IsLocal && fav.CoverArtPath != "" {
 			coverURL := fmt.Sprintf("%s/uploads/%s", s.baseURL, fav.CoverArtPath)
 			item.CoverArtURL = &coverURL
+		} else if !fav.IsLocal {
+			if coverURL := s.resolveJamendoCoverURL(context.Background(), fav.MusicPath); coverURL != "" {
+				item.CoverArtURL = &coverURL
+			}
 		}
 
 		items = append(items, item)
@@ -159,6 +177,10 @@ func (s *UserMusicService) ListPlayHistory(userAccount string, limit int) ([]mod
 		if !h.IsLocal && h.CoverArtPath != "" {
 			coverURL := fmt.Sprintf("%s/uploads/%s", s.baseURL, h.CoverArtPath)
 			item.CoverArtURL = &coverURL
+		} else if !h.IsLocal {
+			if coverURL := s.resolveJamendoCoverURL(context.Background(), h.MusicPath); coverURL != "" {
+				item.CoverArtURL = &coverURL
+			}
 		}
 
 		items = append(items, item)
@@ -196,6 +218,10 @@ func (s *UserMusicService) ListPlayHistoryDistinct(userAccount string, limit int
 		if !h.IsLocal && h.CoverArtPath != "" {
 			coverURL := fmt.Sprintf("%s/uploads/%s", s.baseURL, h.CoverArtPath)
 			item.CoverArtURL = &coverURL
+		} else if !h.IsLocal {
+			if coverURL := s.resolveJamendoCoverURL(context.Background(), h.MusicPath); coverURL != "" {
+				item.CoverArtURL = &coverURL
+			}
 		}
 
 		items = append(items, item)
@@ -253,6 +279,24 @@ func formatDuration(seconds float64) string {
 	minutes := totalSec / 60
 	secs := totalSec % 60
 	return fmt.Sprintf("%02d:%02d", minutes, secs)
+}
+
+func (s *UserMusicService) resolveJamendoCoverURL(ctx context.Context, musicPath string) string {
+	if s.jamendoService == nil || !s.jamendoService.IsConfigured() {
+		return ""
+	}
+
+	sourceID, ok := compat.ParseJamendoSourceID(musicPath)
+	if !ok {
+		return ""
+	}
+
+	track, err := s.jamendoService.GetTrack(ctx, sourceID)
+	if err != nil {
+		logger.Warn("Jamendo cover lookup failed for path %q: %v", musicPath, err)
+		return ""
+	}
+	return strings.TrimSpace(track.CoverArtURL)
 }
 
 func (s *UserMusicService) publishEvent(eventType string, payload interface{}) {

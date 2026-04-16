@@ -352,6 +352,7 @@ paths:
     post:
       tags: [catalog]
       summary: Get stream URL by filename
+      description: Supports both local catalog filenames and Jamendo-compatible virtual filenames returned by `/music/search`.
       operationId: getMusicStreamByFilename
       requestBody:
         required: true
@@ -420,6 +421,11 @@ paths:
     post:
       tags: [catalog]
       summary: Search music by keyword
+      description: |
+        Uses keyword-based routing while keeping the legacy response schema.
+        If the keyword contains Chinese characters, local catalog search is tried first and Jamendo is used as fallback.
+        If the keyword contains Latin letters and no Chinese characters, Jamendo is tried first and local catalog search is used as fallback.
+        Jamendo results are mapped into `FileListItem` with a virtual `path` that can be sent back to `/stream` and `/download`.
       operationId: searchMusic
       requestBody:
         required: true
@@ -1242,6 +1248,7 @@ paths:
     get:
       tags: [media]
       summary: Download file by query parameter
+      description: Supports both local media paths and Jamendo-compatible virtual filenames. Jamendo download is proxied only when upstream download is allowed.
       operationId: downloadFileByQuery
       parameters:
         - in: query
@@ -2172,6 +2179,7 @@ components:
 
     FileListItem:
       type: object
+      description: Legacy search/list item. For Jamendo-compatible search results, `path` is a virtual filename rather than a local relative path.
       properties:
         path:
           type: string
@@ -2186,6 +2194,7 @@ components:
 
     MusicResponse:
       type: object
+      description: Legacy playback response. `stream_url` may point to local uploads or Jamendo upstream audio depending on the requested filename/path.
       properties:
         stream_url:
           type: string

@@ -54,10 +54,10 @@ func main() {
 	db := database.GetDB()
 	musicRepository := musicRepo.NewMusicRepository(db)
 	artistRepository := artistRepo.NewArtistRepository(db)
-	musicSvc := musicService.NewMusicService(musicRepository)
 	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
+	musicSvc := musicService.NewMusicService(musicRepository, jamendoSvc)
 	artistSvc := artistService.NewArtistService(artistRepository)
-	musicH := musicHandler.NewMusicHandler(musicSvc, baseURL)
+	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, baseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 

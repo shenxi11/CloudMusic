@@ -13,6 +13,7 @@ import (
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/middleware"
 	mediaHandler "music-platform/internal/media/handler"
+	musicExternal "music-platform/internal/music/external"
 )
 
 func main() {
@@ -38,7 +39,8 @@ func main() {
 		catalogSchema = cfg.Database.Name
 	}
 
-	mediaH := mediaHandler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema)
+	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
+	mediaH := mediaHandler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema, jamendoSvc)
 	if err := mediaH.EnsureTables(); err != nil {
 		logger.Fatal("媒体服务初始化数据表失败: %v", err)
 	}
