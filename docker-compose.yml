@@ -162,6 +162,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       PROFILE_SERVICE_HOST: 0.0.0.0
       PROFILE_SERVICE_PORT: 18083
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID:-}
     command: >
       /bin/bash -lc
       '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
@@ -190,6 +191,7 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
       MEDIA_SERVICE_HOST: 0.0.0.0
       MEDIA_SERVICE_PORT: 18084
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID:-}
     command: >
       /bin/bash -lc
       '/app/scripts/docker/wait_for.sh mysql 3306 120 &&
