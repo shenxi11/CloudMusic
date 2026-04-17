@@ -14,6 +14,9 @@ import (
 	artistRepo "music-platform/internal/artist/repository"
 	artistService "music-platform/internal/artist/service"
 	clientHandler "music-platform/internal/client/handler"
+	commentHandler "music-platform/internal/comment/handler"
+	commentRepo "music-platform/internal/comment/repository"
+	commentService "music-platform/internal/comment/service"
 	"music-platform/internal/common/cache"
 	"music-platform/internal/common/config"
 	"music-platform/internal/common/database"
@@ -97,6 +100,10 @@ func main() {
 	if err := recommendRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化推荐数据表失败，将继续启动: %v", err)
 	}
+	commentRepository := commentRepo.NewCommentRepository(db, profileSchema, catalogSchema)
+	if err := commentRepository.EnsureTables(); err != nil {
+		logger.Warn("初始化评论表失败，将继续启动: %v", err)
+	}
 
 	// 7. 初始化服务层
 	userSvc := userService.NewUserService(userRepository, userMusicRepository, "", cfg.Server.UploadDir)
@@ -135,6 +142,7 @@ func main() {
 	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil, jamendoSvc)
 	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil, jamendoSvc)
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
+	commentSvc := commentService.NewCommentService(commentRepository, userRepository, baseURL, nil, nil)
 	userH := userHandler.NewUserHandler(userSvc)
 	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, baseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
@@ -149,6 +157,7 @@ func main() {
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
 	playlistH := playlistHandler.NewPlaylistHandler(playlistSvc)
 	recommendH := recommendHandler.NewRecommendHandler(recommendSvc)
+	commentH := commentHandler.NewCommentHandler(commentSvc)
 	adminH := adminHandler.NewAdminHandler(cfg, db)
 	connectH := clientHandler.NewConnectHandler(cfg)
 
@@ -194,6 +203,8 @@ func main() {
 	mux.HandleFunc("/user/history", usermusicH.ListPlayHistory)          // 播放历史
 	mux.HandleFunc("/user/playlists", playlistH.HandleRoot)
 	mux.HandleFunc("/user/playlists/", playlistH.HandleSubRoutes)
+	mux.HandleFunc("/music/comments", commentH.HandleRoot)
+	mux.HandleFunc("/music/comments/", commentH.HandleSubRoutes)
 	mux.HandleFunc("/recommendations/audio", recommendH.GetRecommendations)
 	mux.HandleFunc("/recommendations/similar/", recommendH.GetSimilar)
 	mux.HandleFunc("/recommendations/feedback", recommendH.PostFeedback)
