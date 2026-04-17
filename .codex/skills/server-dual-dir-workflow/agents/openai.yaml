@@ -1,0 +1,7 @@
+interface:
+  display_name: "服务端双目录工作流"
+  short_description: "约束 CloudMusic 服务端只能在 microservice-deploy 开发测试提交，并由 CloudMusic 仅拉取 main 后正式部署。"
+  default_prompt: "Use $server-dual-dir-workflow for any CloudMusic backend development, testing, release, deployment, hotfix, or production-troubleshooting task."
+
+policy:
+  allow_implicit_invocation: true

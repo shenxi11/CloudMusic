@@ -2,17 +2,19 @@
 
 ## 双目录工作流
 
-推荐将本仓库按以下方式使用：
+本仓库必须按以下方式使用：
 
 - `/home/shen/microservice-deploy`
   - 唯一开发仓库
+  - 唯一允许的代码修改、测试、提交、推送目录
   - 允许功能分支开发、接口测试、临时 Docker 环境验证
 - `/home/shen/CloudMusic`
   - 唯一正式运行目录
   - 固定跟踪 `origin/main`
   - 只允许拉取最新 `main` 后重建 `cloudmusic` 服务
+  - 不允许作为代码提交目录或功能修复目录
 
-推荐正式部署命令：
+唯一允许的正式部署命令：
 
 ```bash
 cd /home/shen/CloudMusic
@@ -35,11 +37,22 @@ cd /home/shen/CloudMusic
 ./scripts/deploy_from_main.sh --no-build
 ```
 
-说明：
+强制规则：
 
 - `CloudMusic` 若不在 `main` 分支，脚本会拒绝部署
 - `CloudMusic` 若工作区不干净，脚本会拒绝部署
-- `microservice-deploy` 默认只作为开发测试环境，不作为正式运行环境
+- `microservice-deploy` 只作为开发测试环境，不作为正式运行环境
+- 服务端代码改动必须先在 `microservice-deploy` 完成开发、测试、提交并进入 Git
+- 只有代码进入 `origin/main` 后，才允许 `CloudMusic` 拉取并正式部署
+- 禁止在 `CloudMusic` 直接修改业务代码、直接提交、直接 cherry-pick 热修
+- 禁止通过“宿主机构建二进制后注入现有镜像”等旁路方式发布正式环境
+
+提交前最低验证门槛：
+
+- 默认必须执行 `go test ./...`
+- 若改动涉及 HTTP 路由、handler、service，必须补对应接口冒烟测试
+- 若改动涉及 `Dockerfile`、`docker-compose.yml`、部署脚本或配置生成脚本，必须补 Docker/部署冒烟测试
+- 若改动涉及 `migrations/sql/`，必须补迁移验证和至少一个受影响接口或查询验证
 
 ## 📁 目录结构
 
