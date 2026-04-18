@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	chartmodel "music-platform/internal/chart/model"
 	"music-platform/internal/music/model"
 	usermodel "music-platform/internal/usermusic/model"
 )
@@ -51,6 +52,10 @@ type fakeJamendoService struct {
 	track      *model.ExternalMusicTrack
 }
 
+type fakeChartWriter struct {
+	lastPlay *chartmodel.HotTrackPlay
+}
+
 func (f *fakeJamendoService) IsConfigured() bool {
 	return f.configured
 }
@@ -61,6 +66,12 @@ func (f *fakeJamendoService) Search(ctx context.Context, keyword string, limit i
 
 func (f *fakeJamendoService) GetTrack(ctx context.Context, id string) (*model.ExternalMusicTrack, error) {
 	return f.track, nil
+}
+
+func (f *fakeChartWriter) RecordOnlinePlay(ctx context.Context, play chartmodel.HotTrackPlay) error {
+	cloned := play
+	f.lastPlay = &cloned
+	return nil
 }
 
 func TestListFavoritesBackfillsJamendoCover(t *testing.T) {
@@ -74,7 +85,7 @@ func TestListFavoritesBackfillsJamendoCover(t *testing.T) {
 			CreatedAt:   time.Unix(0, 0),
 		}},
 	}
-	svc := NewUserMusicService(repo, "http://127.0.0.1:8080", nil, nil, &fakeJamendoService{
+	svc := NewUserMusicService(repo, "http://127.0.0.1:8080", nil, nil, nil, &fakeJamendoService{
 		configured: true,
 		track: &model.ExternalMusicTrack{
 			SourceID:    "1218138",
@@ -91,5 +102,29 @@ func TestListFavoritesBackfillsJamendoCover(t *testing.T) {
 	}
 	if *items[0].CoverArtURL != "https://img.example/1218138.jpg" {
 		t.Fatalf("unexpected cover: %q", *items[0].CoverArtURL)
+	}
+}
+
+func TestAddPlayHistoryWritesHotChartForOnlineMusic(t *testing.T) {
+	repo := &fakeUserMusicRepository{}
+	writer := &fakeChartWriter{}
+	svc := NewUserMusicService(repo, "http://127.0.0.1:8080", nil, nil, writer, &fakeJamendoService{})
+
+	err := svc.AddPlayHistory("u1", usermodel.AddPlayHistoryRequest{
+		MusicPath:   "jay/七里香.mp3",
+		MusicTitle:  "七里香",
+		Artist:      "周杰伦",
+		Album:       "七里香",
+		DurationSec: 294,
+		IsLocal:     false,
+	})
+	if err != nil {
+		t.Fatalf("AddPlayHistory error: %v", err)
+	}
+	if writer.lastPlay == nil {
+		t.Fatalf("expected chart writer to be called")
+	}
+	if writer.lastPlay.MusicPath != "jay/七里香.mp3" || writer.lastPlay.Title != "七里香" {
+		t.Fatalf("unexpected chart play payload: %+v", writer.lastPlay)
 	}
 }

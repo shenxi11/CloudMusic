@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	chartmodel "music-platform/internal/chart/model"
 	"music-platform/internal/common/eventbus"
 	"music-platform/internal/common/logger"
 	"music-platform/internal/common/outbox"
@@ -18,6 +19,7 @@ type UserMusicService struct {
 	baseURL        string
 	publisher      eventbus.Publisher
 	outbox         *outbox.Store
+	chartWriter    chartWriter
 	jamendoService external.JamendoService
 }
 
@@ -32,12 +34,17 @@ type userMusicRepository interface {
 	ClearPlayHistory(userAccount string) (int64, error)
 }
 
-func NewUserMusicService(repo userMusicRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store, jamendoService external.JamendoService) *UserMusicService {
+type chartWriter interface {
+	RecordOnlinePlay(ctx context.Context, play chartmodel.HotTrackPlay) error
+}
+
+func NewUserMusicService(repo userMusicRepository, baseURL string, publisher eventbus.Publisher, outboxStore *outbox.Store, chartWriter chartWriter, jamendoService external.JamendoService) *UserMusicService {
 	return &UserMusicService{
 		repo:           repo,
 		baseURL:        baseURL,
 		publisher:      publisher,
 		outbox:         outboxStore,
+		chartWriter:    chartWriter,
 		jamendoService: jamendoService,
 	}
 }
@@ -139,6 +146,7 @@ func (s *UserMusicService) AddPlayHistory(userAccount string, req model.AddPlayH
 		return err
 	}
 
+	s.recordOnlinePlay(req)
 	s.publishEvent("user.play_history.added", map[string]interface{}{
 		"user_account": userAccount,
 		"music_path":   req.MusicPath,
@@ -329,5 +337,23 @@ func (s *UserMusicService) enqueueOutbox(evt *eventbus.Event, reason string) {
 	}
 	if err := s.outbox.SavePending(evt, reason); err != nil {
 		logger.Warn("写入 outbox 失败: %v", err)
+	}
+}
+
+func (s *UserMusicService) recordOnlinePlay(req model.AddPlayHistoryRequest) {
+	if s.chartWriter == nil || req.IsLocal {
+		return
+	}
+
+	err := s.chartWriter.RecordOnlinePlay(context.Background(), chartmodel.HotTrackPlay{
+		MusicPath:   req.MusicPath,
+		Title:       req.MusicTitle,
+		Artist:      req.Artist,
+		Album:       req.Album,
+		DurationSec: req.DurationSec,
+		IsLocal:     req.IsLocal,
+	})
+	if err != nil {
+		logger.Warn("写入热歌榜计分失败 path=%q: %v", req.MusicPath, err)
 	}
 }

@@ -1193,6 +1193,82 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorEnvelope"
 
+
+  /music/charts/hot:
+    get:
+      tags: [profile]
+      summary: Get online hot songs chart
+      operationId: getHotMusicChart
+      description: |
+        Returns the public hot chart for online music only.
+        Rankings are served from the Redis leaderboard, where every successful online play-history write
+        increments both the all-time leaderboard and the current daily bucket.
+        The default window is the most recent 30 days and the default limit is 20.
+      parameters:
+        - in: query
+          name: window
+          required: false
+          schema:
+            type: string
+            enum: [7d, 30d, all]
+            default: 30d
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Hot chart result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HotChartResponse"
+        "503":
+          description: Leaderboard unavailable because Redis is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/charts/hot/rebuild:
+    post:
+      tags: [profile, admin]
+      summary: Rebuild Redis-backed online hot chart
+      operationId: rebuildHotMusicChart
+      description: |
+        Rebuilds the Redis leaderboard from MySQL play-history records.
+        Use `window=all` to rebuild the all-time leaderboard, or `window=7d|30d`
+        to rebuild the recent daily buckets.
+      parameters:
+        - in: query
+          name: window
+          required: true
+          schema:
+            type: string
+            enum: [7d, 30d, all]
+      responses:
+        "200":
+          description: Rebuild success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeHotChartRebuildResponse"
+        "400":
+          description: Invalid rebuild window
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Leaderboard unavailable because Redis is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /recommendations/audio:
     get:
       tags: [recommendation]
@@ -2805,6 +2881,94 @@ components:
           nullable: true
       required: [path]
 
+
+    HotChartResponse:
+      type: object
+      properties:
+        chart_id:
+          type: string
+        title:
+          type: string
+        window:
+          type: string
+          enum: [7d, 30d, all]
+        generated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HotChartItem"
+      required: [chart_id, title, window, generated_at, items]
+
+    HotChartItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+        music_path:
+          type: string
+        path:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        album:
+          type: string
+        duration_sec:
+          type: number
+          format: double
+        cover_art_url:
+          type: string
+          nullable: true
+        source:
+          type: string
+          enum: [catalog, jamendo]
+        source_id:
+          type: string
+        play_count:
+          type: integer
+          format: int64
+      required: [rank, music_path, path, title, source, source_id, play_count]
+
+    HotChartRebuildResponse:
+      type: object
+      properties:
+        window:
+          type: string
+          enum: [7d, 30d, all]
+        rebuilt_buckets:
+          type: integer
+        rebuilt_items:
+          type: integer
+          format: int64
+        generated_at:
+          type: string
+          format: date-time
+      required: [window, rebuilt_buckets, rebuilt_items, generated_at]
+
+    EnvelopeHotChartRebuildResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        message:
+          type: string
+          example: success
+        data:
+          $ref: "#/components/schemas/HotChartRebuildResponse"
+      required: [code, message, data]
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required: [code, message]
     DownloadPostRequest:
       type: object
       required: [filename]

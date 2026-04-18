@@ -13,6 +13,10 @@ import (
 	artistHandler "music-platform/internal/artist/handler"
 	artistRepo "music-platform/internal/artist/repository"
 	artistService "music-platform/internal/artist/service"
+	chartHandler "music-platform/internal/chart/handler"
+	chartRepo "music-platform/internal/chart/repository"
+	chartService "music-platform/internal/chart/service"
+	chartStore "music-platform/internal/chart/store"
 	clientHandler "music-platform/internal/client/handler"
 	commentHandler "music-platform/internal/comment/handler"
 	commentRepo "music-platform/internal/comment/repository"
@@ -100,6 +104,7 @@ func main() {
 	if err := recommendRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化推荐数据表失败，将继续启动: %v", err)
 	}
+	chartRepository := chartRepo.NewChartRepository(db, profileSchema, catalogSchema)
 	commentRepository := commentRepo.NewCommentRepository(db, profileSchema, catalogSchema)
 	if err := commentRepository.EnsureTables(); err != nil {
 		logger.Warn("初始化评论表失败，将继续启动: %v", err)
@@ -139,7 +144,9 @@ func main() {
 		mediaSchema = "music_media"
 	}
 
-	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil, jamendoSvc)
+	leaderboardStore := chartStore.NewRedisStore(cache.GetClient())
+	chartSvc := chartService.NewChartService(chartRepository, leaderboardStore, baseURL, jamendoSvc)
+	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil, chartSvc, jamendoSvc)
 	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil, jamendoSvc)
 	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
 	commentSvc := commentService.NewCommentService(commentRepository, userRepository, baseURL, nil, nil)
@@ -157,6 +164,7 @@ func main() {
 	usermusicH := usermusicHandler.NewUserMusicHandler(usermusicSvc)
 	playlistH := playlistHandler.NewPlaylistHandler(playlistSvc)
 	recommendH := recommendHandler.NewRecommendHandler(recommendSvc)
+	chartH := chartHandler.NewChartHandler(chartSvc)
 	commentH := commentHandler.NewCommentHandler(commentSvc)
 	adminH := adminHandler.NewAdminHandler(cfg, db)
 	connectH := clientHandler.NewConnectHandler(cfg)
@@ -205,6 +213,8 @@ func main() {
 	mux.HandleFunc("/user/playlists/", playlistH.HandleSubRoutes)
 	mux.HandleFunc("/music/comments", commentH.HandleRoot)
 	mux.HandleFunc("/music/comments/", commentH.HandleSubRoutes)
+	mux.HandleFunc("/music/charts/hot", chartH.GetHotChart)
+	mux.HandleFunc("/admin/charts/hot/rebuild", chartH.RebuildHotChart)
 	mux.HandleFunc("/recommendations/audio", recommendH.GetRecommendations)
 	mux.HandleFunc("/recommendations/similar/", recommendH.GetSimilar)
 	mux.HandleFunc("/recommendations/feedback", recommendH.PostFeedback)
