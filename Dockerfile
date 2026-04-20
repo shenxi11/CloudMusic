@@ -1,5 +1,12 @@
 FROM golang:1.22-bookworm AS builder
 
+ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.org
+ARG GOPRIVATE=
+ENV GOPROXY=${GOPROXY} \
+    GOSUMDB=${GOSUMDB} \
+    GOPRIVATE=${GOPRIVATE}
+
 WORKDIR /src
 
 COPY go.mod go.sum ./

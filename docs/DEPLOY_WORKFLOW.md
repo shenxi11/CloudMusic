@@ -65,6 +65,49 @@ cd /home/shen/CloudMusic
 6. 调用 `./start_docker.sh` 部署 `cloudmusic`
 7. 输出 `http://127.0.0.1:8080/health` 健康检查结果
 
+`./start_docker.sh` / `./scripts/docker.sh` 的 `restart` 流程必须遵循：
+
+1. 先渲染配置
+2. 先完成镜像构建
+3. 构建成功后再 `down`
+4. 最后 `up -d`
+
+这样即使构建失败，也不会因为“先停服务再构建”而把线上环境直接打空。
+
+## 网络与构建前置
+
+正式机如果无法稳定访问 Docker Hub 或 `proxy.golang.org`，必须先补齐下面两个前置条件，再执行部署：
+
+1. Docker registry mirror
+
+示例 `/etc/docker/daemon.json`：
+
+```json
+{
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io"
+  ]
+}
+```
+
+修改后执行：
+
+```bash
+systemctl restart docker
+```
+
+2. Go 模块代理
+
+在 `.env.docker` 中显式配置：
+
+```bash
+GOPROXY=https://goproxy.cn,direct
+GOSUMDB=sum.golang.google.cn
+GOPRIVATE=
+```
+
+`docker-compose.yml` 会把这些变量透传给 `Dockerfile` 的构建阶段，避免正式机因为访问 `proxy.golang.org` 超时而构建失败。
+
 ## 禁止事项
 
 1. 不要在 `CloudMusic` 上停留在功能分支运行服务

@@ -192,12 +192,12 @@ case "$cmd" in
     enforce_prod_repo_guard
     render_config
     ensure_data_dirs
-    compose down
     if build_enabled; then
       compose build "${build_args[@]}"
     else
       echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
     fi
+    compose down
     compose up -d "${args[@]}"
     ;;
   logs)

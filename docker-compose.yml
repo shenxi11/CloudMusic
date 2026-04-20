@@ -49,6 +49,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
+        GOPRIVATE: ${GOPRIVATE:-}
     image: ${COMPOSE_PROJECT_NAME:-music-platform}:${IMAGE_TAG:-local}
     restart: "no"
     depends_on:
