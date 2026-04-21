@@ -23,6 +23,8 @@ import (
 
 var seekIndexWindowsDrivePattern = regexp.MustCompile(`^[a-zA-Z]:`)
 
+const seekIndexVersionSalt = "csv-v2"
+
 type seekIndexPoint struct {
 	TimeMs     int64 `json:"time_ms"`
 	ByteOffset int64 `json:"byte_offset"`
@@ -382,7 +384,7 @@ func isSeekIndexFormatSupported(format string) bool {
 
 func buildSeekIndexVersion(musicPath string, info os.FileInfo) string {
 	sum := sha1.Sum([]byte(musicPath))
-	return fmt.Sprintf("%d-%d-%x", info.ModTime().UnixMilli(), info.Size(), sum[:6])
+	return fmt.Sprintf("%d-%d-%x-%s", info.ModTime().UnixMilli(), info.Size(), sum[:6], seekIndexVersionSalt)
 }
 
 func buildSeekIndexCacheKey(musicPath string, info os.FileInfo) string {
