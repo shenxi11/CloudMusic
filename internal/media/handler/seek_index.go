@@ -23,7 +23,7 @@ import (
 
 var seekIndexWindowsDrivePattern = regexp.MustCompile(`^[a-zA-Z]:`)
 
-const seekIndexVersionSalt = "csv-v2"
+const seekIndexVersionSalt = "csv-v3"
 
 type seekIndexPoint struct {
 	TimeMs     int64 `json:"time_ms"`
@@ -321,7 +321,7 @@ func buildSeekIndexPoints(packets []seekIndexProbePacket) ([]seekIndexPoint, err
 	reduced = append(reduced, actual[0])
 	lastKeptTime := actual[0].TimeMs
 	for i := 1; i < len(actual)-1; i++ {
-		if actual[i].TimeMs-lastKeptTime >= 1500 {
+		if actual[i].TimeMs-lastKeptTime >= 250 {
 			reduced = append(reduced, actual[i])
 			lastKeptTime = actual[i].TimeMs
 		}
