@@ -93,16 +93,29 @@ func TestLocalSeekIndexCachesAcrossMemoryAndDiskAndInvalidatesOnFileChange(t *te
 
 	ffprobePath := filepath.Join(t.TempDir(), "fake_ffprobe.sh")
 	if err := os.WriteFile(ffprobePath, []byte(`#!/bin/sh
-count_file="$FAKE_FFPROBE_COUNT_FILE"
-count=0
-if [ -f "$count_file" ]; then
-  count=$(cat "$count_file")
-fi
-count=$((count + 1))
-printf '%s' "$count" > "$count_file"
-cat <<'JSON'
-{"format":{"duration":"3.400"},"packets":[{"pts_time":"0.023","pos":"1024"},{"pts_time":"0.500","pos":"2048"},{"pts_time":"1.700","pos":"4096"},{"pts_time":"3.400","pos":"8192"}]}
-JSON
+case "$*" in
+  *packet=pts_time,pos*)
+    count_file="$FAKE_FFPROBE_COUNT_FILE"
+    count=0
+    if [ -f "$count_file" ]; then
+      count=$(cat "$count_file")
+    fi
+    count=$((count + 1))
+    printf '%s' "$count" > "$count_file"
+    cat <<'CSV'
+0.023,1024
+0.500,2048
+1.700,4096
+3.400,8192
+CSV
+    ;;
+  *format=duration*)
+    printf '3.400\n'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
 `), 0o755); err != nil {
 		t.Fatalf("write fake ffprobe: %v", err)
 	}

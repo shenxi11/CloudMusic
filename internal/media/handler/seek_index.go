@@ -38,13 +38,6 @@ type seekIndexResponse struct {
 	Points     []seekIndexPoint `json:"points"`
 }
 
-type seekIndexProbeResult struct {
-	Format struct {
-		Duration string `json:"duration"`
-	} `json:"format"`
-	Packets []seekIndexProbePacket `json:"packets"`
-}
-
 type seekIndexProbePacket struct {
 	Pos     string `json:"pos"`
 	PtsTime string `json:"pts_time"`
@@ -184,40 +177,93 @@ func (h *MediaHandler) resolveSeekIndexMusicPath(raw string) (string, string, er
 }
 
 func (h *MediaHandler) probeSeekIndex(ctx context.Context, absPath string) (int64, []seekIndexPoint, error) {
-	probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	durationMs, err := h.probeSeekIndexDuration(ctx, absPath)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	packets, err := h.probeSeekIndexPackets(ctx, absPath)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	points, err := buildSeekIndexPoints(packets)
+	if err != nil {
+		return 0, nil, err
+	}
+	if durationMs <= 0 {
+		durationMs = points[len(points)-1].TimeMs
+	}
+	return durationMs, points, nil
+}
+
+func (h *MediaHandler) probeSeekIndexDuration(ctx context.Context, absPath string) (int64, error) {
+	probeCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(
 		probeCtx,
 		h.ffprobePath(),
 		"-v", "quiet",
-		"-print_format", "json",
-		"-show_format",
-		"-show_packets",
-		"-select_streams", "a:0",
-		"-show_entries", "format=duration:packet=pts_time,pos",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
 		absPath,
 	)
 	output, err := cmd.Output()
 	if err != nil {
-		return 0, nil, err
+		return 0, err
 	}
+	return parseSeekIndexDurationMs(string(output)), nil
+}
 
-	var probe seekIndexProbeResult
-	if err := json.Unmarshal(output, &probe); err != nil {
-		return 0, nil, err
-	}
+func (h *MediaHandler) probeSeekIndexPackets(ctx context.Context, absPath string) ([]seekIndexProbePacket, error) {
+	probeCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
 
-	points, err := buildSeekIndexPoints(probe.Packets)
+	cmd := exec.CommandContext(
+		probeCtx,
+		h.ffprobePath(),
+		"-v", "quiet",
+		"-select_streams", "a:0",
+		"-show_entries", "packet=pts_time,pos",
+		"-of", "csv=p=0",
+		absPath,
+	)
+	output, err := cmd.Output()
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
-	durationMs := parseSeekIndexDurationMs(probe.Format.Duration)
-	if durationMs <= 0 {
-		durationMs = points[len(points)-1].TimeMs
+	lines := strings.Split(strings.ReplaceAll(string(output), "\r\n", "\n"), "\n")
+	packets := make([]seekIndexProbePacket, 0, len(lines))
+	for _, line := range lines {
+		packet, ok := parseSeekIndexPacketLine(line)
+		if !ok {
+			continue
+		}
+		packets = append(packets, packet)
 	}
-	return durationMs, points, nil
+	if len(packets) == 0 {
+		return nil, fmt.Errorf("ffprobe未返回可用packet")
+	}
+	return packets, nil
+}
+
+func parseSeekIndexPacketLine(raw string) (seekIndexProbePacket, bool) {
+	line := strings.TrimSpace(raw)
+	if line == "" {
+		return seekIndexProbePacket{}, false
+	}
+	parts := strings.Split(line, ",")
+	if len(parts) < 2 {
+		return seekIndexProbePacket{}, false
+	}
+	ptsTime := strings.TrimSpace(parts[0])
+	pos := strings.TrimSpace(parts[1])
+	if ptsTime == "" || pos == "" {
+		return seekIndexProbePacket{}, false
+	}
+	return seekIndexProbePacket{PtsTime: ptsTime, Pos: pos}, true
 }
 
 func (h *MediaHandler) ffprobePath() string {
