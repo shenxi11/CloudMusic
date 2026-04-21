@@ -28,6 +28,8 @@ type MediaHandler struct {
 	httpClient *http.Client
 
 	jamendoService external.JamendoService
+	seekIndexCache *seekIndexCacheStore
+	ffprobeBinary  string
 
 	mediaSchema       string
 	catalogSchema     string
@@ -44,6 +46,8 @@ func NewMediaHandler(uploadDir string, db *sql.DB, mediaSchema, catalogSchema st
 		db:                db,
 		httpClient:        http.DefaultClient,
 		jamendoService:    jamendoService,
+		seekIndexCache:    newSeekIndexCacheStore(),
+		ffprobeBinary:     "ffprobe",
 		mediaSchema:       mSchema,
 		catalogSchema:     cSchema,
 		mediaLyricsTable:  qualifiedMediaTable(mSchema, "media_lyrics_map"),
