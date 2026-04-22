@@ -25,9 +25,6 @@ const (
 
 func hasSupportedLocalPlaybackExtension(pathLower string) bool {
 	return strings.HasSuffix(pathLower, ".mp3") ||
-		strings.HasSuffix(pathLower, ".flac") ||
-		strings.HasSuffix(pathLower, ".wav") ||
-		strings.HasSuffix(pathLower, ".ogg") ||
 		strings.HasSuffix(pathLower, ".m4a") ||
 		strings.HasSuffix(pathLower, ".aac")
 }
@@ -116,8 +113,10 @@ func (h *MediaHandler) ensureLocalHLS(ctx context.Context, r *http.Request, musi
 	playlistPath := filepath.Join(absoluteDir, "index.m3u8")
 	manifestURL := h.absoluteMediaURL(r, "/hls/"+relativeDir+"/index.m3u8")
 
-	if _, err := os.Stat(playlistPath); err == nil {
+	if err := ensureLocalHLSArtifactsReady(absoluteDir, playlistPath); err == nil {
 		return manifestURL, nil
+	} else if !os.IsNotExist(err) {
+		logger.Warn("local hls manifest not ready music_path=%s playlist=%s err=%v", musicPath, playlistPath, err)
 	}
 
 	if err := os.MkdirAll(absoluteDir, 0o755); err != nil {
@@ -159,12 +158,51 @@ func (h *MediaHandler) ensureLocalHLS(ctx context.Context, r *http.Request, musi
 	if err != nil {
 		return "", fmt.Errorf("ffmpeg hls convert failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	if _, err := os.Stat(playlistPath); err != nil {
-		return "", fmt.Errorf("playlist missing after ffmpeg: %w", err)
+	if err := ensureLocalHLSArtifactsReady(absoluteDir, playlistPath); err != nil {
+		return "", fmt.Errorf("playlist not ready after ffmpeg: %w", err)
 	}
 
 	logger.Info("local hls generated music_path=%s manifest=%s", musicPath, manifestURL)
 	return manifestURL, nil
+}
+
+func ensureLocalHLSArtifactsReady(absoluteDir, playlistPath string) error {
+	playlistInfo, err := os.Stat(playlistPath)
+	if err != nil {
+		return err
+	}
+	if playlistInfo.IsDir() {
+		return fmt.Errorf("playlist path is directory")
+	}
+	if playlistInfo.Size() == 0 {
+		return fmt.Errorf("playlist is empty")
+	}
+
+	playlistBytes, err := os.ReadFile(playlistPath)
+	if err != nil {
+		return fmt.Errorf("read playlist: %w", err)
+	}
+	if !strings.Contains(string(playlistBytes), "#EXTM3U") {
+		return fmt.Errorf("playlist missing EXTM3U header")
+	}
+
+	initPath := filepath.Join(absoluteDir, "init.mp4")
+	initInfo, err := os.Stat(initPath)
+	if err != nil {
+		return fmt.Errorf("init segment missing: %w", err)
+	}
+	if initInfo.IsDir() || initInfo.Size() == 0 {
+		return fmt.Errorf("init segment not ready")
+	}
+
+	segments, err := filepath.Glob(filepath.Join(absoluteDir, "seg_*.m4s"))
+	if err != nil {
+		return fmt.Errorf("glob segments: %w", err)
+	}
+	if len(segments) == 0 {
+		return fmt.Errorf("media segments missing")
+	}
+	return nil
 }
 
 func (h *MediaHandler) localHLSCacheKey(musicPath, version string) string {
