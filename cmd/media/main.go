@@ -56,6 +56,7 @@ func main() {
 	mux.HandleFunc("/files/", mediaH.Download)
 	mux.HandleFunc("/uploads/", mediaH.ServeFile)
 	mux.HandleFunc("/music/local/seek-index", mediaH.LocalSeekIndex)
+	mux.HandleFunc("/music/local/playback-info", mediaH.LocalPlaybackInfo)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
 			"service": "media-service",

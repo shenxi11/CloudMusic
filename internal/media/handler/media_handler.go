@@ -30,6 +30,8 @@ type MediaHandler struct {
 	jamendoService external.JamendoService
 	seekIndexCache *seekIndexCacheStore
 	ffprobeBinary  string
+	hlsDir         string
+	ffmpegBinary   string
 
 	mediaSchema       string
 	catalogSchema     string
@@ -48,6 +50,8 @@ func NewMediaHandler(uploadDir string, db *sql.DB, mediaSchema, catalogSchema st
 		jamendoService:    jamendoService,
 		seekIndexCache:    newSeekIndexCacheStore(),
 		ffprobeBinary:     "ffprobe",
+		hlsDir:            deriveLocalHLSRoot(uploadDir),
+		ffmpegBinary:      "ffmpeg",
 		mediaSchema:       mSchema,
 		catalogSchema:     cSchema,
 		mediaLyricsTable:  qualifiedMediaTable(mSchema, "media_lyrics_map"),

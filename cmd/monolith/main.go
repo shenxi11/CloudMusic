@@ -230,6 +230,7 @@ func main() {
 	mux.HandleFunc("/lrc", mediaH.LRC)
 	mux.HandleFunc("/uploads/", mediaH.ServeFile)
 	mux.HandleFunc("/music/local/seek-index", mediaH.LocalSeekIndex)
+	mux.HandleFunc("/music/local/playback-info", mediaH.LocalPlaybackInfo)
 	mux.HandleFunc("/files/", mediaH.Download)
 	mux.HandleFunc("/download", mediaH.DownloadQuery) // 旧版兼容接口（处理 ?path= 参数）
 
