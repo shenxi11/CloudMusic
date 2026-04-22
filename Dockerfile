@@ -1,3 +1,4 @@
+ARG RUNTIME_BASE_IMAGE=cloudmusic-runtime-base:bookworm-ffmpeg
 FROM golang:1.22-bookworm AS builder
 
 ARG GOPROXY=https://proxy.golang.org,direct
@@ -35,7 +36,7 @@ RUN set -eux; \
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "/out/${name}" "${main}"; \
     done
 
-ARG RUNTIME_BASE_IMAGE=cloudmusic-runtime-base:bookworm-ffmpeg
+ARG RUNTIME_BASE_IMAGE
 FROM ${RUNTIME_BASE_IMAGE} AS runtime
 
 WORKDIR /app
