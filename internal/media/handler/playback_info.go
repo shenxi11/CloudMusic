@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	localPlaybackVersionSalt  = "hls-v1"
-	localPlaybackSegmentTime  = 2
-	localPlaybackAudioBitrate = "192k"
+	localPlaybackVersionSalt   = "hls-v1"
+	localPlaybackSegmentTime   = 2
+	localPlaybackAudioBitrate  = "192k"
+	localPlaybackHLSBuildLimit = 2 * time.Minute
 )
 
 func hasSupportedLocalPlaybackExtension(pathLower string) bool {
@@ -90,14 +91,14 @@ func (h *MediaHandler) buildLocalPlaybackInfo(ctx context.Context, r *http.Reque
 		return result, nil
 	}
 
-	manifestURL, err := h.ensureLocalHLS(ctx, r, musicPath, absPath, version)
-	if err != nil {
-		logger.Warn("local hls generation failed music_path=%s err=%v", musicPath, err)
+	manifestURL, ready := h.readyLocalHLSManifestURL(r, musicPath, version)
+	if ready {
+		result.HLSSupported = true
+		result.HLSManifestURL = manifestURL
 		return result, nil
 	}
 
-	result.HLSSupported = true
-	result.HLSManifestURL = manifestURL
+	h.scheduleLocalHLSBuild(musicPath, absPath, version)
 	return result, nil
 }
 
@@ -106,12 +107,65 @@ func (h *MediaHandler) canGenerateLocalHLS(musicPath string) bool {
 	return hasSupportedLocalPlaybackExtension(lower)
 }
 
-func (h *MediaHandler) ensureLocalHLS(ctx context.Context, r *http.Request, musicPath, absPath, version string) (string, error) {
-	cacheKey := h.localHLSCacheKey(musicPath, version)
+func (h *MediaHandler) readyLocalHLSManifestURL(r *http.Request, musicPath, version string) (string, bool) {
+	_, absoluteDir, playlistPath, manifestURL := h.localHLSPaths(r, musicPath, version)
+	if err := ensureLocalHLSArtifactsReady(absoluteDir, playlistPath); err != nil {
+		if !os.IsNotExist(err) {
+			logger.Warn("local hls manifest not ready music_path=%s playlist=%s err=%v", musicPath, playlistPath, err)
+		}
+		return "", false
+	}
+	return manifestURL, true
+}
+
+func (h *MediaHandler) localHLSPaths(r *http.Request, musicPath, version string) (cacheKey, absoluteDir, playlistPath, manifestURL string) {
+	cacheKey = h.localHLSCacheKey(musicPath, version)
 	relativeDir := filepath.ToSlash(filepath.Join("local", cacheKey))
-	absoluteDir := filepath.Join(h.hlsRoot(), filepath.FromSlash(relativeDir))
-	playlistPath := filepath.Join(absoluteDir, "index.m3u8")
-	manifestURL := h.absoluteMediaURL(r, "/hls/"+relativeDir+"/index.m3u8")
+	absoluteDir = filepath.Join(h.hlsRoot(), filepath.FromSlash(relativeDir))
+	playlistPath = filepath.Join(absoluteDir, "index.m3u8")
+	manifestURL = h.absoluteMediaURL(r, "/hls/"+relativeDir+"/index.m3u8")
+	return cacheKey, absoluteDir, playlistPath, manifestURL
+}
+
+func (h *MediaHandler) scheduleLocalHLSBuild(musicPath, absPath, version string) {
+	cacheKey, absoluteDir, playlistPath, _ := h.localHLSPaths(nil, musicPath, version)
+	if err := ensureLocalHLSArtifactsReady(absoluteDir, playlistPath); err == nil {
+		return
+	}
+	if !h.beginLocalHLSBuild(cacheKey) {
+		return
+	}
+
+	go func() {
+		defer h.finishLocalHLSBuild(cacheKey)
+		ctx, cancel := context.WithTimeout(context.Background(), localPlaybackHLSBuildLimit)
+		defer cancel()
+		if _, err := h.ensureLocalHLS(ctx, nil, musicPath, absPath, version); err != nil {
+			logger.Warn("local hls async build failed music_path=%s err=%v", musicPath, err)
+			return
+		}
+		logger.Info("local hls async build ready music_path=%s cache_key=%s", musicPath, cacheKey)
+	}()
+}
+
+func (h *MediaHandler) beginLocalHLSBuild(cacheKey string) bool {
+	h.localHLSBuildMu.Lock()
+	defer h.localHLSBuildMu.Unlock()
+	if _, exists := h.localHLSBuildInFlight[cacheKey]; exists {
+		return false
+	}
+	h.localHLSBuildInFlight[cacheKey] = struct{}{}
+	return true
+}
+
+func (h *MediaHandler) finishLocalHLSBuild(cacheKey string) {
+	h.localHLSBuildMu.Lock()
+	delete(h.localHLSBuildInFlight, cacheKey)
+	h.localHLSBuildMu.Unlock()
+}
+
+func (h *MediaHandler) ensureLocalHLS(ctx context.Context, r *http.Request, musicPath, absPath, version string) (string, error) {
+	_, absoluteDir, playlistPath, manifestURL := h.localHLSPaths(r, musicPath, version)
 
 	if err := ensureLocalHLSArtifactsReady(absoluteDir, playlistPath); err == nil {
 		return manifestURL, nil
@@ -131,7 +185,7 @@ func (h *MediaHandler) ensureLocalHLS(ctx context.Context, r *http.Request, musi
 		}
 	}
 
-	ffmpegCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	ffmpegCtx, cancel := context.WithTimeout(ctx, localPlaybackHLSBuildLimit)
 	defer cancel()
 
 	segmentPattern := filepath.Join(absoluteDir, "seg_%05d.m4s")

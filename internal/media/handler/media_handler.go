@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"music-platform/internal/common/logger"
 	"music-platform/internal/music/compat"
@@ -33,6 +34,9 @@ type MediaHandler struct {
 	hlsDir         string
 	ffmpegBinary   string
 
+	localHLSBuildMu       sync.Mutex
+	localHLSBuildInFlight map[string]struct{}
+
 	mediaSchema       string
 	catalogSchema     string
 	mediaLyricsTable  string
@@ -44,18 +48,19 @@ func NewMediaHandler(uploadDir string, db *sql.DB, mediaSchema, catalogSchema st
 	mSchema := normalizeMediaSchema(mediaSchema, "music_media")
 	cSchema := normalizeMediaSchema(catalogSchema, "music_users")
 	return &MediaHandler{
-		uploadDir:         uploadDir,
-		db:                db,
-		httpClient:        http.DefaultClient,
-		jamendoService:    jamendoService,
-		seekIndexCache:    newSeekIndexCacheStore(),
-		ffprobeBinary:     "ffprobe",
-		hlsDir:            deriveLocalHLSRoot(uploadDir),
-		ffmpegBinary:      "ffmpeg",
-		mediaSchema:       mSchema,
-		catalogSchema:     cSchema,
-		mediaLyricsTable:  qualifiedMediaTable(mSchema, "media_lyrics_map"),
-		catalogMusicTable: qualifiedMediaTable(cSchema, "music_files"),
+		uploadDir:             uploadDir,
+		db:                    db,
+		httpClient:            http.DefaultClient,
+		jamendoService:        jamendoService,
+		seekIndexCache:        newSeekIndexCacheStore(),
+		ffprobeBinary:         "ffprobe",
+		hlsDir:                deriveLocalHLSRoot(uploadDir),
+		ffmpegBinary:          "ffmpeg",
+		localHLSBuildInFlight: make(map[string]struct{}),
+		mediaSchema:           mSchema,
+		catalogSchema:         cSchema,
+		mediaLyricsTable:      qualifiedMediaTable(mSchema, "media_lyrics_map"),
+		catalogMusicTable:     qualifiedMediaTable(cSchema, "music_files"),
 	}
 }
 

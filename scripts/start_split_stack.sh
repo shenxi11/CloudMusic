@@ -4,8 +4,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NGINX_BIN="${NGINX_BIN:-/usr/local/nginx/sbin/nginx}"
-NGINX_CONF="$SCRIPT_DIR/deploy/nginx/nginx.split.conf"
+NGINX_TEMPLATE="$SCRIPT_DIR/deploy/nginx/nginx.split.conf"
 NGINX_PREFIX="$SCRIPT_DIR/.runtime/nginx"
+NGINX_CONF="$NGINX_PREFIX/nginx.split.conf"
 MIGRATOR_SCRIPT="$SCRIPT_DIR/scripts/migrate_all.sh"
 BACKEND_HEALTH_URL="http://127.0.0.1:18080/health"
 AUTH_HEALTH_URL="http://127.0.0.1:18081/health"
@@ -14,6 +15,27 @@ PROFILE_HEALTH_URL="http://127.0.0.1:18083/health"
 MEDIA_HEALTH_URL="http://127.0.0.1:18084/health"
 VIDEO_HEALTH_URL="http://127.0.0.1:18085/health"
 GATEWAY_HEALTH_URL="http://127.0.0.1:8080/health"
+UPLOADS_ROOT="${UPLOADS_ROOT:-$SCRIPT_DIR/uploads}"
+VIDEO_ROOT="${VIDEO_ROOT:-$SCRIPT_DIR/video}"
+HLS_ROOT="${HLS_ROOT:-$SCRIPT_DIR/uploads_hls}"
+
+render_nginx_conf() {
+  python3 - "$NGINX_TEMPLATE" "$NGINX_CONF" "$UPLOADS_ROOT" "$VIDEO_ROOT" "$HLS_ROOT" <<'PY'
+from pathlib import Path
+import sys
+
+template_path = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+uploads_root = Path(sys.argv[3]).resolve().as_posix().rstrip('/') + '/'
+video_root = Path(sys.argv[4]).resolve().as_posix().rstrip('/') + '/'
+hls_root = Path(sys.argv[5]).resolve().as_posix().rstrip('/') + '/'
+text = template_path.read_text(encoding='utf-8')
+text = text.replace('__UPLOADS_ROOT__', uploads_root)
+text = text.replace('__VIDEO_ROOT__', video_root)
+text = text.replace('__HLS_ROOT__', hls_root)
+output_path.write_text(text, encoding='utf-8')
+PY
+}
 
 echo "[1/11] 检查依赖..."
 if [ ! -x "$NGINX_BIN" ]; then
@@ -59,8 +81,8 @@ if [ ! -x "$MIGRATOR_SCRIPT" ]; then
   echo "请先执行: chmod +x scripts/migrate_all.sh"
   exit 1
 fi
-if [ ! -f "$NGINX_CONF" ]; then
-  echo "错误: 未找到 nginx 配置: $NGINX_CONF"
+if [ ! -f "$NGINX_TEMPLATE" ]; then
+  echo "错误: 未找到 nginx 配置模板: $NGINX_TEMPLATE"
   exit 1
 fi
 
@@ -71,7 +93,14 @@ mkdir -p \
   "$NGINX_PREFIX/temp/proxy" \
   "$NGINX_PREFIX/temp/fastcgi" \
   "$NGINX_PREFIX/temp/uwsgi" \
-  "$NGINX_PREFIX/temp/scgi"
+  "$NGINX_PREFIX/temp/scgi" \
+  "$HLS_ROOT"
+render_nginx_conf
+
+if [ ! -d "$UPLOADS_ROOT" ]; then
+  echo "错误: 未找到静态 uploads 目录: $UPLOADS_ROOT"
+  exit 1
+fi
 
 echo "[3/11] 执行数据库迁移..."
 "$MIGRATOR_SCRIPT"
@@ -225,4 +254,7 @@ echo "  媒体健康: $MEDIA_HEALTH_URL"
 echo "  视频健康: $VIDEO_HEALTH_URL"
 echo "  事件消费器: active"
 echo "  对外健康: $GATEWAY_HEALTH_URL"
+echo "  静态 uploads: $UPLOADS_ROOT"
+echo "  静态 hls: $HLS_ROOT"
+echo "  静态 video: $VIDEO_ROOT"
 echo "  资源入口: http://127.0.0.1:8080/uploads/... 和 /video/..."
