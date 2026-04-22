@@ -50,6 +50,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        RUNTIME_BASE_IMAGE: ${RUNTIME_BASE_IMAGE:-cloudmusic-runtime-base:bookworm-ffmpeg}
         GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
         GOSUMDB: ${GOSUMDB:-sum.golang.org}
         GOPRIVATE: ${GOPRIVATE:-}

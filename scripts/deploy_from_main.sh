@@ -7,11 +7,16 @@ ENV_FILE="$ROOT_DIR/.env.docker"
 START_SCRIPT="$ROOT_DIR/start_docker.sh"
 
 DEPLOY_MODE="auto"
+REFRESH_BASE=0
 START_ARGS=()
 CHANGED_FILES=()
 DEPLOY_STRATEGY=""
 
-BUILD_REQUIRED_PATTERNS=(
+BASE_BUILD_REQUIRED_PATTERNS=(
+  "Dockerfile.runtime-base"
+)
+
+APP_BUILD_REQUIRED_PATTERNS=(
   ".dockerignore"
   "Dockerfile"
   "docker-compose.yml"
@@ -37,15 +42,17 @@ fail() {
 
 usage() {
   cat <<USAGE
-Usage: ./scripts/deploy_from_main.sh [--force-build | --no-build] [extra start_docker args]
+Usage: ./scripts/deploy_from_main.sh [--force-build | --no-build] [--refresh-base] [extra start_docker args]
 
 Modes:
   default / auto  自动根据拉取到的文件变化决定:
                   - 仅文档/辅助文件变化: 不重启
                   - 仅运行时配置变化:   --no-build --force-recreate
-                  - 镜像/源码变化:      --force-recreate
-  --force-build   无条件执行构建后部署
+                  - 仅应用镜像变化:     --force-recreate
+                  - 基础运行时镜像变化: --refresh-base --force-recreate
+  --force-build   无条件执行应用镜像构建后部署
   --no-build      无条件跳过构建并重建容器
+  --refresh-base  强制刷新 ffmpeg 运行时基础镜像
 USAGE
 }
 
@@ -58,6 +65,9 @@ while [[ $# -gt 0 ]]; do
     --no-build)
       [[ "$DEPLOY_MODE" == "auto" ]] || fail "不能同时指定 --force-build 和 --no-build"
       DEPLOY_MODE="no-build"
+      ;;
+    --refresh-base)
+      REFRESH_BASE=1
       ;;
     -h|--help)
       usage
@@ -97,13 +107,20 @@ detect_deploy_strategy() {
   fi
 
   local file
-  local requires_build=0
+  local requires_base_build=0
+  local requires_app_build=0
   local requires_recreate=0
   local has_runtime_change=0
 
   for file in "${CHANGED_FILES[@]}"; do
-    if matches_prefix "$file" "${BUILD_REQUIRED_PATTERNS[@]}"; then
-      requires_build=1
+    if matches_prefix "$file" "${BASE_BUILD_REQUIRED_PATTERNS[@]}"; then
+      requires_base_build=1
+      requires_app_build=1
+      has_runtime_change=1
+      continue
+    fi
+    if matches_prefix "$file" "${APP_BUILD_REQUIRED_PATTERNS[@]}"; then
+      requires_app_build=1
       has_runtime_change=1
       continue
     fi
@@ -113,8 +130,12 @@ detect_deploy_strategy() {
     fi
   done
 
-  if (( requires_build )); then
-    DEPLOY_STRATEGY="build-required"
+  if (( requires_base_build )); then
+    DEPLOY_STRATEGY="base-build-required"
+    return 0
+  fi
+  if (( requires_app_build )); then
+    DEPLOY_STRATEGY="app-build-required"
     return 0
   fi
   if (( requires_recreate )); then
@@ -142,10 +163,23 @@ run_start_script() {
   local mode="$1"
   shift || true
 
+  local extra_args=("$@")
+  if [[ "$mode" == "base-build-required" || "$REFRESH_BASE" == "1" ]]; then
+    extra_args=(--refresh-base "${extra_args[@]}")
+  fi
+
   case "$mode" in
-    build-required|force-build)
-      echo "[4/4] deploy cloudmusic via start_docker.sh --force-recreate"
-      "$START_SCRIPT" --force-recreate "$@"
+    base-build-required)
+      echo "[4/4] deploy cloudmusic via start_docker.sh --refresh-base --force-recreate"
+      "$START_SCRIPT" "${extra_args[@]}" --force-recreate
+      ;;
+    app-build-required|force-build)
+      if [[ "$REFRESH_BASE" == "1" ]]; then
+        echo "[4/4] deploy cloudmusic via start_docker.sh --refresh-base --force-recreate"
+      else
+        echo "[4/4] deploy cloudmusic via start_docker.sh --force-recreate"
+      fi
+      "$START_SCRIPT" "${extra_args[@]}" --force-recreate
       ;;
     recreate-only|no-build)
       echo "[4/4] deploy cloudmusic via start_docker.sh --no-build --force-recreate"
@@ -164,6 +198,10 @@ run_start_script() {
       ;;
   esac
 }
+
+if [[ "$DEPLOY_MODE" == "no-build" && "$REFRESH_BASE" == "1" ]]; then
+  fail "--refresh-base 不能和 --no-build 同时使用"
+fi
 
 command -v git >/dev/null 2>&1 || fail "git 未安装"
 [[ -f "$ENV_FILE" ]] || fail "$ENV_FILE 不存在"

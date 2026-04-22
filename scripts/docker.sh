@@ -7,6 +7,8 @@ COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 ENV_FILE="$ROOT_DIR/.env.docker"
 ENV_EXAMPLE="$ROOT_DIR/.env.docker.example"
 RENDER_SCRIPT="$ROOT_DIR/scripts/docker/render_config.sh"
+RUNTIME_BASE_DOCKERFILE="$ROOT_DIR/Dockerfile.runtime-base"
+DEFAULT_RUNTIME_BASE_IMAGE="cloudmusic-runtime-base:bookworm-ffmpeg"
 
 export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
 
@@ -15,17 +17,18 @@ usage() {
 Usage: ./scripts/docker.sh <command> [args]
 
 Commands:
-  up [--no-build]
+  up [--no-build] [--refresh-base]
                 Build and start full stack in background
   down          Stop and remove containers
-  restart [--no-build]
+  restart [--no-build] [--refresh-base]
                 Restart full stack
   logs [svc]    Follow logs (all services or specific service)
   ps            Show container status
   config        Render and print compose config
   migrate       Run migrator once
   sync-media    Scan media dirs and upsert DB metadata (passes args to media_indexer)
-  build         Build app image only
+  build [--refresh-base]
+                Build app image only
   help          Show this help
 USAGE
 }
@@ -102,6 +105,14 @@ resolve_project_name() {
   printf '%s' "$fallback"
 }
 
+resolve_runtime_base_image() {
+  if [[ -n "${RUNTIME_BASE_IMAGE:-}" ]]; then
+    printf '%s' "$RUNTIME_BASE_IMAGE"
+    return
+  fi
+  printf '%s' "$DEFAULT_RUNTIME_BASE_IMAGE"
+}
+
 compose() {
   local project_name
   project_name="$(resolve_project_name)"
@@ -131,6 +142,35 @@ build_enabled() {
   return 0
 }
 
+build_runtime_base_image() {
+  local image="$1"
+  [[ -f "$RUNTIME_BASE_DOCKERFILE" ]] || {
+    echo "Error: runtime base dockerfile not found: $RUNTIME_BASE_DOCKERFILE"
+    exit 1
+  }
+  echo "Building runtime base image: $image"
+  docker build -f "$RUNTIME_BASE_DOCKERFILE" -t "$image" "$ROOT_DIR"
+}
+
+ensure_runtime_base_image() {
+  local refresh="${1:-0}"
+  local image
+  image="$(resolve_runtime_base_image)"
+  export RUNTIME_BASE_IMAGE="$image"
+
+  if [[ "$refresh" == "1" ]]; then
+    build_runtime_base_image "$image"
+    return
+  fi
+
+  if docker image inspect "$image" >/dev/null 2>&1; then
+    echo "Using cached runtime base image: $image"
+    return
+  fi
+
+  build_runtime_base_image "$image"
+}
+
 strip_no_build_flag() {
   local -n args_ref=$1
   local out=()
@@ -138,6 +178,22 @@ strip_no_build_flag() {
     case "$arg" in
       --no-build)
         SKIP_DOCKER_BUILD=1
+        ;;
+      *)
+        out+=("$arg")
+        ;;
+    esac
+  done
+  args_ref=("${out[@]}")
+}
+
+strip_refresh_base_flag() {
+  local -n args_ref=$1
+  local out=()
+  for arg in "${args_ref[@]}"; do
+    case "$arg" in
+      --refresh-base)
+        REFRESH_BASE=1
         ;;
       *)
         out+=("$arg")
@@ -165,9 +221,16 @@ strip_build_incompatible_flags() {
 cmd="${1:-up}"
 shift || true
 args=("$@")
+REFRESH_BASE=0
 strip_no_build_flag args
+strip_refresh_base_flag args
 build_args=("${args[@]}")
 strip_build_incompatible_flags build_args
+
+if [[ "${SKIP_DOCKER_BUILD:-0}" == "1" && "$REFRESH_BASE" == "1" ]]; then
+  echo "Error: --refresh-base cannot be combined with --no-build."
+  exit 1
+fi
 
 case "$cmd" in
   up)
@@ -176,6 +239,7 @@ case "$cmd" in
     render_config
     ensure_data_dirs
     if build_enabled; then
+      ensure_runtime_base_image "$REFRESH_BASE"
       compose build "${build_args[@]}"
     else
       echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
@@ -194,6 +258,7 @@ case "$cmd" in
     ensure_data_dirs
     compose down
     if build_enabled; then
+      ensure_runtime_base_image "$REFRESH_BASE"
       compose build "${build_args[@]}"
     else
       echo "Skipping image build because --no-build or SKIP_DOCKER_BUILD=1 was set."
@@ -235,6 +300,7 @@ case "$cmd" in
   build)
     ensure_env_file
     render_config
+    ensure_runtime_base_image "$REFRESH_BASE"
     compose build "${args[@]}"
     ;;
   help|-h|--help)

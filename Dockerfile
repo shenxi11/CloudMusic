@@ -35,12 +35,10 @@ RUN set -eux; \
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "/out/${name}" "${main}"; \
     done
 
-FROM debian:bookworm-slim AS runtime
+ARG RUNTIME_BASE_IMAGE=cloudmusic-runtime-base:bookworm-ffmpeg
+FROM ${RUNTIME_BASE_IMAGE} AS runtime
 
 WORKDIR /app
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates bash netcat-openbsd tzdata ffmpeg
 
 COPY --from=builder /out/ /app/
 COPY scripts/docker/wait_for.sh /app/scripts/docker/wait_for.sh
