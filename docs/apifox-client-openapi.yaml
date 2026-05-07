@@ -1,74 +1,71 @@
 openapi: 3.0.3
 info:
-  title: Music Platform Gateway API
-  version: "2026-03-04"
-  description: |
-    Gateway API for the split architecture deployment.
-    Base gateway: http://127.0.0.1:8080
-    Verified with live tests on 2026-03-04.
+  title: CloudMusic Client API for Apifox
+  version: '2026-03-04'
+  description: 'Desktop-client-facing CloudMusic API collection. Source of truth: docs/openapi.yaml.'
 servers:
-  - url: http://127.0.0.1:8080
-    description: Local gateway
-  - url: http://slcdut.xyz:8080
-    description: Public gateway
-
+- url: http://192.168.1.208:8080
+  description: VM deployment gateway
+- url: http://127.0.0.1:8080
+  description: Local gateway
 tags:
-  - name: system
-  - name: client
-  - name: auth
-  - name: presence
-  - name: catalog
-  - name: profile
-  - name: playlist
-  - name: comment
-  - name: recommendation
-  - name: media
-  - name: video
-  - name: compatibility
-
+- name: system
+- name: client
+- name: auth
+- name: presence
+- name: catalog
+- name: profile
+- name: playlist
+- name: comment
+- name: chart
+- name: recommendation
+- name: media
+- name: video
+- name: compatibility
 paths:
   /health:
     get:
-      tags: [system]
+      tags:
+      - system
       summary: Gateway health check
       operationId: getHealth
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponse"
-
+                $ref: '#/components/schemas/HealthResponse'
   /client/ping:
     get:
-      tags: [client]
+      tags:
+      - client
       summary: Lightweight connectivity check for client startup
       operationId: getClientPing
       responses:
-        "200":
+        '200':
           description: Ping success envelope
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeClientPing"
-
+                $ref: '#/components/schemas/EnvelopeClientPing'
   /client/bootstrap:
     get:
-      tags: [client]
+      tags:
+      - client
       summary: Client bootstrap info and service readiness
       operationId: getClientBootstrap
       responses:
-        "200":
+        '200':
           description: Bootstrap success envelope
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeClientBootstrap"
-
+                $ref: '#/components/schemas/EnvelopeClientBootstrap'
   /users/register:
     post:
-      tags: [auth]
+      tags:
+      - auth
       summary: Register user
       operationId: registerUser
       requestBody:
@@ -76,36 +73,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RegisterRequest"
+              $ref: '#/components/schemas/RegisterRequest'
             example:
               account: demo_account
               password: demo_password
               username: demo_user
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
+                $ref: '#/components/schemas/EnvelopeSuccessBool'
               example:
                 code: 0
                 message: success
                 data:
                   success: true
-        "409":
+        '409':
           description: Account already exists
           content:
             text/plain:
               schema:
                 type: string
               example: this account already exists
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/login:
     post:
-      tags: [auth]
+      tags:
+      - auth
       summary: Login user
       operationId: loginUser
       requestBody:
@@ -113,21 +110,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/LoginRequest"
+              $ref: '#/components/schemas/LoginRequest'
             example:
               account: demo_account
               password: demo_password
       responses:
-        "200":
+        '200':
           description: Login response (success or fail)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LoginResponse"
-
+                $ref: '#/components/schemas/LoginResponse'
   /users/ping:
     post:
-      tags: [presence]
+      tags:
+      - presence
       summary: Legacy online ping (compat, no session token check)
       operationId: pingUserLegacy
       requestBody:
@@ -135,44 +132,44 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UserPingRequest"
+              $ref: '#/components/schemas/UserPingRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
-
+                $ref: '#/components/schemas/EnvelopeSuccessBool'
   /users/profile:
     get:
-      tags: [auth]
+      tags:
+      - auth
       summary: Get current user profile
       operationId: getUserProfile
       parameters:
-        - in: query
-          name: account
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: session_token
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: account
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: session_token
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: User profile
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeUserProfile"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeUserProfile'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/profile/username:
     post:
-      tags: [auth]
+      tags:
+      - auth
       summary: Update current username
       operationId: updateUsername
       requestBody:
@@ -180,26 +177,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateUsernameRequest"
+              $ref: '#/components/schemas/UpdateUsernameRequest'
             example:
               account: demo_account
               session_token: demo_session_token
               username: 新用户名
       responses:
-        "200":
+        '200':
           description: Username updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeUpdateUsernameResponse"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "409":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeUpdateUsernameResponse'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '409':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/profile/avatar:
     post:
-      tags: [auth]
+      tags:
+      - auth
       summary: Upload or replace current avatar
       operationId: uploadAvatar
       requestBody:
@@ -208,7 +205,10 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [account, session_token, avatar]
+              required:
+              - account
+              - session_token
+              - avatar
               properties:
                 account:
                   type: string
@@ -218,18 +218,18 @@ paths:
                   type: string
                   format: binary
       responses:
-        "200":
+        '200':
           description: Avatar uploaded
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeUploadAvatarResponse"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeUploadAvatarResponse'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/online/session/start:
     post:
-      tags: [presence]
+      tags:
+      - presence
       summary: Start online session and issue session token
       operationId: startOnlineSession
       requestBody:
@@ -237,18 +237,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OnlineSessionStartRequest"
+              $ref: '#/components/schemas/OnlineSessionStartRequest'
       responses:
-        "200":
+        '200':
           description: Session started
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeOnlineSession"
-
+                $ref: '#/components/schemas/EnvelopeOnlineSession'
   /users/online/heartbeat:
     post:
-      tags: [presence]
+      tags:
+      - presence
       summary: Heartbeat online session (requires session_token)
       operationId: heartbeatOnlineSession
       requestBody:
@@ -256,51 +256,51 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OnlineHeartbeatRequest"
+              $ref: '#/components/schemas/OnlineHeartbeatRequest'
       responses:
-        "200":
+        '200':
           description: Session renewed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeOnlineSession"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeOnlineSession'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/online/status:
     get:
-      tags: [presence]
+      tags:
+      - presence
       summary: Get current online status (requires session_token)
       operationId: getOnlineStatus
       parameters:
-        - in: query
-          name: account
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: username
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: session_token
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: account
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: username
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: session_token
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Online status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeOnlineStatus"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeOnlineStatus'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /users/online/logout:
     post:
-      tags: [presence]
+      tags:
+      - presence
       summary: Logout online session (requires session_token)
       operationId: logoutOnlineSession
       requestBody:
@@ -308,50 +308,50 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OnlineLogoutRequest"
+              $ref: '#/components/schemas/OnlineLogoutRequest'
       responses:
-        "200":
+        '200':
           description: Logout success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeSuccessBool'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /files:
     get:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: List music files
       operationId: listMusicFiles
       responses:
-        "200":
+        '200':
           description: Music list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/FileListItem"
-
+                  $ref: '#/components/schemas/FileListItem'
   /file:
     get:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: List music files (compat alias)
       operationId: listMusicFilesCompat
       responses:
-        "200":
+        '200':
           description: Music list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/FileListItem"
-
+                  $ref: '#/components/schemas/FileListItem'
   /stream:
     post:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Get stream URL by filename
       description: Supports both local catalog filenames and Jamendo-compatible virtual filenames returned by `/music/search`.
       operationId: getMusicStreamByFilename
@@ -360,44 +360,44 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/StreamRequest"
+              $ref: '#/components/schemas/StreamRequest'
             example:
               filename: hua_hai.mp3
       responses:
-        "200":
+        '200':
           description: Music stream info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MusicResponse"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/MusicResponse'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
   /get_music:
     get:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Get music detail by path
       operationId: getMusicByPath
       parameters:
-        - in: query
-          name: path
-          required: true
-          schema:
-            type: string
-          example: hua_hai/hua_hai.mp3
+      - in: query
+        name: path
+        required: true
+        schema:
+          type: string
+        example: hua_hai/hua_hai.mp3
       responses:
-        "200":
+        '200':
           description: Music detail
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MusicResponse"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/MusicResponse'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
   /music/artist:
     post:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Search music by artist
       operationId: listMusicByArtist
       requestBody:
@@ -405,50 +405,68 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ArtistRequest"
+              $ref: '#/components/schemas/ArtistRequest'
             example:
               artist: Jay Chou
       responses:
-        "200":
+        '200':
           description: Music list filtered by artist
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/FileListItem"
-
+                  $ref: '#/components/schemas/FileListItem'
   /music/search:
     post:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Search music by keyword
-      description: |
-        Uses keyword-based routing while keeping the legacy response schema.
+      description: 'Uses keyword-based routing while keeping the legacy response schema.
+
         If the keyword contains Chinese characters, local catalog search is tried first and Jamendo is used as fallback.
-        If the keyword contains Latin letters and no Chinese characters, Jamendo is tried first and local catalog search is used as fallback.
+
+        If the keyword contains Latin letters and no Chinese characters, Jamendo is tried first and local catalog search is
+        used as fallback.
+
         Jamendo results are mapped into `FileListItem` with a virtual `path` that can be sent back to `/stream` and `/download`.
+
+        '
       operationId: searchMusic
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SearchRequest"
+              $ref: '#/components/schemas/SearchRequest'
             example:
               keyword: hai
       responses:
-        "200":
+        '200':
           description: Music search results
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/FileListItem"
-
+                  $ref: '#/components/schemas/FileListItem'
+  /music/health-test:
+    get:
+      tags:
+      - catalog
+      summary: Catalog health test
+      operationId: getMusicHealthTest
+      responses:
+        '200':
+          description: Catalog health test result
+          content:
+            application/json:
+              schema:
+                type: object
   /external/music/jamendo/search:
     post:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Search Jamendo external music library
       description: Real-time search against Jamendo. Results are not stored locally and stream_url points to Jamendo audio.
       operationId: searchJamendoMusic
@@ -457,58 +475,58 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ExternalMusicSearchRequest"
+              $ref: '#/components/schemas/ExternalMusicSearchRequest'
             example:
               keyword: mayday
               limit: 20
       responses:
-        "200":
+        '200':
           description: Jamendo external music results
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/ExternalMusicTrack"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "502":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "503":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                  $ref: '#/components/schemas/ExternalMusicTrack'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '502':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '503':
+          $ref: '#/components/responses/ErrorEnvelope'
   /external/music/jamendo/track:
     get:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Get Jamendo track detail
       description: Fetch one Jamendo track by Jamendo track id. This does not download or cache audio.
       operationId: getJamendoTrack
       parameters:
-        - in: query
-          name: id
-          required: true
-          schema:
-            type: string
-          example: "1218138"
+      - in: query
+        name: id
+        required: true
+        schema:
+          type: string
+        example: '1218138'
       responses:
-        "200":
+        '200':
           description: Jamendo external music detail
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ExternalMusicTrack"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "502":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "503":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/ExternalMusicTrack'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '502':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '503':
+          $ref: '#/components/responses/ErrorEnvelope'
   /artist/search:
     post:
-      tags: [catalog]
+      tags:
+      - catalog
       summary: Check if artist exists
       operationId: searchArtist
       requestBody:
@@ -516,562 +534,564 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ArtistRequest"
+              $ref: '#/components/schemas/ArtistRequest'
             example:
               artist: Jay Chou
       responses:
-        "200":
+        '200':
           description: Artist existence
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ArtistExistsResponse"
-
+                $ref: '#/components/schemas/ArtistExistsResponse'
   /user/favorites/add:
     post:
-      tags: [profile]
+      tags:
+      - profile
       summary: Add favorite music
       operationId: addFavorite
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AddFavoriteRequest"
+              $ref: '#/components/schemas/AddFavoriteRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-        "400":
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
           description: Missing user account or invalid body
-
   /user/favorites:
     get:
-      tags: [profile]
+      tags:
+      - profile
       summary: List favorites
       operationId: listFavorites
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Favorite list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/MusicItem"
-        "400":
+                  $ref: '#/components/schemas/MusicItem'
+        '400':
           description: Missing user account
-
   /user/favorites/remove:
     post:
-      tags: [profile]
+      tags:
+      - profile
       summary: Remove favorite music
       operationId: removeFavorite
       description: user_account can be passed in query/header/body.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: music_path
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: music_path
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RemoveFavoriteRequest"
+              $ref: '#/components/schemas/RemoveFavoriteRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-        "400":
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
           description: Missing parameters
-
   /user/history/add:
     post:
-      tags: [profile]
+      tags:
+      - profile
       summary: Add play history record
       operationId: addPlayHistory
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AddPlayHistoryRequest"
+              $ref: '#/components/schemas/AddPlayHistoryRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-        "400":
+                $ref: '#/components/schemas/ActionResponse'
+        '400':
           description: Missing user account or invalid body
-
   /user/history:
     get:
-      tags: [profile]
+      tags:
+      - profile
       summary: List play history
       operationId: listPlayHistory
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-        - in: query
-          name: distinct
-          required: false
-          schema:
-            type: boolean
-            default: true
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+      - in: query
+        name: distinct
+        required: false
+        schema:
+          type: boolean
+          default: true
       responses:
-        "200":
+        '200':
           description: Play history
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/MusicItem"
-
+                  $ref: '#/components/schemas/MusicItem'
   /user/history/delete:
     post:
-      tags: [profile]
+      tags:
+      - profile
       summary: Delete selected play history by music paths
       operationId: deletePlayHistory
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeletePlayHistoryRequest"
+              $ref: '#/components/schemas/DeletePlayHistoryRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteActionResponse"
-
+                $ref: '#/components/schemas/DeleteActionResponse'
   /user/history/clear:
     post:
-      tags: [profile]
+      tags:
+      - profile
       summary: Clear all play history
       operationId: clearPlayHistory
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteActionResponse"
-
+                $ref: '#/components/schemas/DeleteActionResponse'
   /user/playlists:
     get:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: List user playlists
       operationId: listPlaylists
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            default: 1
-            minimum: 1
-        - in: query
-          name: page_size
-          required: false
-          schema:
-            type: integer
-            default: 20
-            minimum: 1
-            maximum: 100
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - in: query
+        name: page_size
+        required: false
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
       responses:
-        "200":
+        '200':
           description: Playlist page result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlaylistListResponse"
+                $ref: '#/components/schemas/PlaylistListResponse'
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Create private playlist
       operationId: createPlaylist
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreatePlaylistRequest"
+              $ref: '#/components/schemas/CreatePlaylistRequest'
       responses:
-        "200":
+        '200':
           description: Create success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlaylistCreateResponse"
-
+                $ref: '#/components/schemas/PlaylistCreateResponse'
   /user/playlists/{playlist_id}:
     get:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Get playlist detail
       operationId: getPlaylistDetail
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Playlist detail
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlaylistDetail"
-
+                $ref: '#/components/schemas/PlaylistDetail'
   /user/playlists/{playlist_id}/update:
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Update playlist metadata
       operationId: updatePlaylist
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdatePlaylistRequest"
+              $ref: '#/components/schemas/UpdatePlaylistRequest'
       responses:
-        "200":
+        '200':
           description: Update success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-
+                $ref: '#/components/schemas/ActionResponse'
   /user/playlists/{playlist_id}/delete:
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Delete playlist
       operationId: deletePlaylist
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Delete success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-
+                $ref: '#/components/schemas/ActionResponse'
   /user/playlists/{playlist_id}/items/add:
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Add tracks into playlist
       operationId: addPlaylistItems
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AddPlaylistItemsRequest"
+              $ref: '#/components/schemas/AddPlaylistItemsRequest'
       responses:
-        "200":
+        '200':
           description: Add result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlaylistAddItemsResponse"
-
+                $ref: '#/components/schemas/PlaylistAddItemsResponse'
   /user/playlists/{playlist_id}/items/remove:
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Remove tracks from playlist
       operationId: removePlaylistItems
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RemovePlaylistItemsRequest"
+              $ref: '#/components/schemas/RemovePlaylistItemsRequest'
       responses:
-        "200":
+        '200':
           description: Remove result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DeleteActionResponse"
-
+                $ref: '#/components/schemas/DeleteActionResponse'
   /user/playlists/{playlist_id}/items/reorder:
     post:
-      tags: [playlist]
+      tags:
+      - playlist
       summary: Reorder playlist tracks
       operationId: reorderPlaylistItems
       description: Provide user identity with query param user_account or header X-User-Account.
       parameters:
-        - in: path
-          name: playlist_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
+      - in: path
+        name: playlist_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ReorderPlaylistItemsRequest"
+              $ref: '#/components/schemas/ReorderPlaylistItemsRequest'
       responses:
-        "200":
+        '200':
           description: Reorder success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
-
+                $ref: '#/components/schemas/ActionResponse'
   /music/comments:
     get:
-      tags: [comment]
+      tags:
+      - comment
       summary: List root comments for one online track
       operationId: listMusicComments
       parameters:
-        - in: query
-          name: music_path
-          required: true
-          schema:
-            type: string
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            default: 1
-            minimum: 1
-        - in: query
-          name: page_size
-          required: false
-          schema:
-            type: integer
-            default: 20
-            minimum: 1
-            maximum: 100
+      - in: query
+        name: music_path
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - in: query
+        name: page_size
+        required: false
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
       responses:
-        "200":
+        '200':
           description: Comment thread with root comments
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommentThreadResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
+                $ref: '#/components/schemas/CommentThreadResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
     post:
-      tags: [comment]
+      tags:
+      - comment
       summary: Create root comment for one online track
       operationId: createMusicComment
       requestBody:
@@ -1079,287 +1099,262 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateMusicCommentRequest"
+              $ref: '#/components/schemas/CreateMusicCommentRequest'
       responses:
-        "200":
+        '200':
           description: Comment created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommentActionResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/CommentActionResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
   /music/comments/{comment_id}/replies:
     get:
-      tags: [comment]
+      tags:
+      - comment
       summary: List flat replies under one root comment
       operationId: listMusicCommentReplies
       parameters:
-        - in: path
-          name: comment_id
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - in: query
-          name: page
-          required: false
-          schema:
-            type: integer
-            default: 1
-            minimum: 1
-        - in: query
-          name: page_size
-          required: false
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 100
+      - in: path
+        name: comment_id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - in: query
+        name: page_size
+        required: false
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 100
       responses:
-        "200":
+        '200':
           description: Flat replies
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommentRepliesResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
+                $ref: '#/components/schemas/CommentRepliesResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
     post:
-      tags: [comment]
+      tags:
+      - comment
       summary: Reply inside one comment thread
       operationId: createMusicCommentReply
       parameters:
-        - in: path
-          name: comment_id
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - in: path
+        name: comment_id
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateMusicReplyRequest"
+              $ref: '#/components/schemas/CreateMusicReplyRequest'
       responses:
-        "200":
+        '200':
           description: Reply created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommentActionResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/CommentActionResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
   /music/comments/{comment_id}/delete:
     post:
-      tags: [comment]
+      tags:
+      - comment
       summary: Soft delete one self-authored comment
       operationId: deleteMusicComment
       parameters:
-        - in: path
-          name: comment_id
-          required: true
-          schema:
-            type: integer
-            format: int64
+      - in: path
+        name: comment_id
+        required: true
+        schema:
+          type: integer
+          format: int64
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeleteMusicCommentRequest"
+              $ref: '#/components/schemas/DeleteMusicCommentRequest'
       responses:
-        "200":
+        '200':
           description: Comment deleted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CommentActionResponse"
-        "401":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "403":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-
-
+                $ref: '#/components/schemas/CommentActionResponse'
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '403':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
   /music/charts/hot:
     get:
-      tags: [profile]
+      tags:
+      - chart
       summary: Get online hot songs chart
       operationId: getHotMusicChart
-      description: |
-        Returns the public hot chart for online music only.
+      description: 'Returns the public hot chart for online music only.
+
         Rankings are served from the Redis leaderboard, where every successful online play-history write
+
         increments both the all-time leaderboard and the current daily bucket.
+
         The default window is the most recent 30 days and the default limit is 20.
+
+        '
       parameters:
-        - in: query
-          name: window
-          required: false
-          schema:
-            type: string
-            enum: [7d, 30d, all]
-            default: 30d
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+      - in: query
+        name: window
+        required: false
+        schema:
+          type: string
+          enum:
+          - 7d
+          - 30d
+          - all
+          default: 30d
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
-        "200":
+        '200':
           description: Hot chart result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HotChartResponse"
-        "503":
+                $ref: '#/components/schemas/HotChartResponse'
+        '503':
           description: Leaderboard unavailable because Redis is not ready
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /admin/charts/hot/rebuild:
-    post:
-      tags: [profile, admin]
-      summary: Rebuild Redis-backed online hot chart
-      operationId: rebuildHotMusicChart
-      description: |
-        Rebuilds the Redis leaderboard from MySQL play-history records.
-        Use `window=all` to rebuild the all-time leaderboard, or `window=7d|30d`
-        to rebuild the recent daily buckets.
-      parameters:
-        - in: query
-          name: window
-          required: true
-          schema:
-            type: string
-            enum: [7d, 30d, all]
-      responses:
-        "200":
-          description: Rebuild success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EnvelopeHotChartRebuildResponse"
-        "400":
-          description: Invalid rebuild window
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "503":
-          description: Leaderboard unavailable because Redis is not ready
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
   /recommendations/audio:
     get:
-      tags: [recommendation]
+      tags:
+      - recommendation
       summary: Get personalized audio recommendations
       operationId: getAudioRecommendations
       parameters:
-        - in: query
-          name: user_id
-          required: false
-          schema:
-            type: string
-          description: 推荐用户 ID；可替代使用 user_account / X-User-Account
-        - in: query
-          name: user_account
-          required: false
-          schema:
-            type: string
-        - in: header
-          name: X-User-Account
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: scene
-          required: false
-          schema:
-            type: string
-            enum: [home, radio, detail]
-            default: home
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - in: query
-          name: exclude_played
-          required: false
-          schema:
-            type: boolean
-            default: true
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
+      - in: query
+        name: user_id
+        required: false
+        schema:
+          type: string
+        description: 推荐用户 ID；可替代使用 user_account / X-User-Account
+      - in: query
+        name: user_account
+        required: false
+        schema:
+          type: string
+      - in: header
+        name: X-User-Account
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: scene
+        required: false
+        schema:
+          type: string
+          enum:
+          - home
+          - radio
+          - detail
+          default: home
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - in: query
+        name: exclude_played
+        required: false
+        schema:
+          type: boolean
+          default: true
+      - in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: Recommendation result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeRecommendationList"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeRecommendationList'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
   /recommendations/similar/{song_id}:
     get:
-      tags: [recommendation]
+      tags:
+      - recommendation
       summary: Get similar songs by anchor song
       operationId: getSimilarRecommendations
       parameters:
-        - in: path
-          name: song_id
-          required: true
-          schema:
-            type: string
-          description: 建议使用 URL Path Encode 后传入
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+      - in: path
+        name: song_id
+        required: true
+        schema:
+          type: string
+        description: 建议使用 URL Path Encode 后传入
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
       responses:
-        "200":
+        '200':
           description: Similar recommendation result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeRecommendationList"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/EnvelopeRecommendationList'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
   /recommendations/feedback:
     post:
-      tags: [recommendation]
+      tags:
+      - recommendation
       summary: Report recommendation feedback
       operationId: postRecommendationFeedback
       requestBody:
@@ -1367,69 +1362,30 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RecommendationFeedbackRequest"
+              $ref: '#/components/schemas/RecommendationFeedbackRequest'
             example:
-              user_id: "10001"
-              song_id: "jay/七里香.mp3"
-              event_type: "play"
+              user_id: '10001'
+              song_id: jay/七里香.mp3
+              event_type: play
               play_ms: 32000
               duration_ms: 240000
-              scene: "home"
-              request_id: "rec_abc123"
-              model_version: "rule_hybrid_v1"
-              event_at: "2026-03-04T10:00:00+08:00"
+              scene: home
+              request_id: rec_abc123
+              model_version: rule_hybrid_v1
+              event_at: '2026-03-04T10:00:00+08:00'
       responses:
-        "200":
+        '200':
           description: Feedback accepted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-
-  /admin/recommend/retrain:
-    post:
-      tags: [recommendation]
-      summary: Trigger recommendation retrain task
-      operationId: triggerRecommendationRetrain
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RecommendationRetrainRequest"
-      responses:
-        "202":
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EnvelopeTaskAccepted"
-
-  /admin/recommend/model-status:
-    get:
-      tags: [recommendation]
-      summary: Get recommendation model status
-      operationId: getRecommendationModelStatus
-      parameters:
-        - in: query
-          name: model_name
-          required: false
-          schema:
-            type: string
-            default: rule_hybrid
-      responses:
-        "200":
-          description: Model status
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EnvelopeModelStatus"
-
+                $ref: '#/components/schemas/EnvelopeSuccessBool'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
   /upload:
     post:
-      tags: [media]
+      tags:
+      - media
       summary: Upload file
       operationId: uploadFile
       requestBody:
@@ -1438,68 +1394,70 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [file]
+              required:
+              - file
               properties:
                 file:
                   type: string
                   format: binary
       responses:
-        "200":
+        '200':
           description: Upload success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeUploadPath"
-
+                $ref: '#/components/schemas/EnvelopeUploadPath'
   /files/{path}:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Download file by routed path
       operationId: downloadFileByPath
       description: If path contains '/', URL-encode it when calling this endpoint.
       parameters:
-        - in: path
-          name: path
-          required: true
-          schema:
-            type: string
+      - in: path
+        name: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: File content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-        "206":
+        '206':
           description: Partial content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-
   /download:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Download file by query parameter
-      description: Supports both local media paths and Jamendo-compatible virtual filenames. Jamendo download is proxied only when upstream download is allowed.
+      description: Supports both local media paths and Jamendo-compatible virtual filenames. Jamendo download is proxied only
+        when upstream download is allowed.
       operationId: downloadFileByQuery
       parameters:
-        - in: query
-          name: path
-          required: true
-          schema:
-            type: string
+      - in: query
+        name: path
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
+        '200':
           description: File content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-        "206":
+        '206':
           description: Partial content
           content:
             application/octet-stream:
@@ -1507,7 +1465,8 @@ paths:
                 type: string
                 format: binary
     post:
-      tags: [media]
+      tags:
+      - media
       summary: Download file by POST payload
       operationId: downloadFileByPost
       requestBody:
@@ -1515,37 +1474,37 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DownloadPostRequest"
+              $ref: '#/components/schemas/DownloadPostRequest'
       responses:
-        "200":
+        '200':
           description: File content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-        "206":
+        '206':
           description: Partial content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-
   /lrc:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Get lyric lines by lyric path
       operationId: getLyricsByPath
       parameters:
-        - in: query
-          name: path
-          required: true
-          schema:
-            type: string
-          example: hua_hai/hua_hai.lrc
+      - in: query
+        name: path
+        required: true
+        schema:
+          type: string
+        example: hua_hai/hua_hai.lrc
       responses:
-        "200":
+        '200':
           description: Lyric lines
           content:
             application/json:
@@ -1553,21 +1512,21 @@ paths:
                 type: array
                 items:
                   type: string
-
   /uploads/{folder}/lrc:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Get lyric lines by music folder
       operationId: getLyricsByFolder
       parameters:
-        - in: path
-          name: folder
-          required: true
-          schema:
-            type: string
-          example: hua_hai
+      - in: path
+        name: folder
+        required: true
+        schema:
+          type: string
+        example: hua_hai
       responses:
-        "200":
+        '200':
           description: Lyric lines
           content:
             application/json:
@@ -1575,131 +1534,123 @@ paths:
                 type: array
                 items:
                   type: string
-
   /uploads/{path}:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Serve static media file (nginx direct)
       operationId: serveUploadedFile
       description: If path contains '/', URL-encode it when using generated clients.
       parameters:
-        - in: path
-          name: path
-          required: true
-          schema:
-            type: string
-        - in: header
-          name: Range
-          required: false
-          schema:
-            type: string
-          example: bytes=0-1023
+      - in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Range
+        required: false
+        schema:
+          type: string
+        example: bytes=0-1023
       responses:
-        "200":
+        '200':
           description: File content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-        "206":
+        '206':
           description: Partial content
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
-
-
-  /music/health-test:
-    get:
-      tags: [catalog]
-      summary: Catalog health test
-      operationId: getMusicHealthTest
-      responses:
-        "200":
-          description: Catalog health test result
-          content:
-            application/json:
-              schema:
-                type: object
-
   /music/local/seek-index:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Get local audio seek index
       operationId: getLocalMusicSeekIndex
-      description: |
-        Returns byte-offset seek points for an uploaded local audio file. The desktop client uses this
+      description: 'Returns byte-offset seek points for an uploaded local audio file. The desktop client uses this
+
         to speed up seeking for locally uploaded music. `music_path` must be a relative path under the
+
         upload directory; absolute paths and parent-directory traversal are rejected.
+
+        '
       parameters:
-        - in: query
-          name: music_path
-          required: true
-          schema:
-            type: string
-          example: artist/song.mp3
+      - in: query
+        name: music_path
+        required: true
+        schema:
+          type: string
+        example: artist/song.mp3
       responses:
-        "200":
+        '200':
           description: Seek index result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LocalSeekIndexResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "405":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/LocalSeekIndexResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '405':
+          $ref: '#/components/responses/ErrorEnvelope'
   /music/local/playback-info:
     get:
-      tags: [media]
+      tags:
+      - media
       summary: Get local audio playback info
       operationId: getLocalMusicPlaybackInfo
-      description: |
-        Returns direct playback URL, duration, version, and HLS readiness for an uploaded local audio file.
+      description: 'Returns direct playback URL, duration, version, and HLS readiness for an uploaded local audio file.
+
         For supported formats, the first request may trigger asynchronous HLS generation and return
+
         `hls_supported=false`; call this endpoint again later to obtain `hls_manifest_url` when ready.
+
+        '
       parameters:
-        - in: query
-          name: music_path
-          required: true
-          schema:
-            type: string
-          example: artist/song.mp3
+      - in: query
+        name: music_path
+        required: true
+        schema:
+          type: string
+        example: artist/song.mp3
       responses:
-        "200":
+        '200':
           description: Local playback info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LocalPlaybackInfoResponse"
-        "400":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "405":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "500":
-          $ref: "#/components/responses/ErrorEnvelope"
-
+                $ref: '#/components/schemas/LocalPlaybackInfoResponse'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '405':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '500':
+          $ref: '#/components/responses/ErrorEnvelope'
   /videos:
     get:
-      tags: [video]
+      tags:
+      - video
       summary: List videos
       operationId: listVideos
       responses:
-        "200":
+        '200':
           description: Video list
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/VideoFile"
-
+                  $ref: '#/components/schemas/VideoFile'
   /video/stream:
     post:
-      tags: [video]
+      tags:
+      - video
       summary: Get video stream URL
       operationId: getVideoStream
       requestBody:
@@ -1707,52 +1658,52 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/VideoStreamRequest"
+              $ref: '#/components/schemas/VideoStreamRequest'
       responses:
-        "200":
+        '200':
           description: Video stream response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/VideoStreamResponse"
-
+                $ref: '#/components/schemas/VideoStreamResponse'
   /video/{path}:
     get:
-      tags: [video]
+      tags:
+      - video
       summary: Serve static video file (nginx direct)
       operationId: serveVideoFile
       description: If path contains '/', URL-encode it when using generated clients.
       parameters:
-        - in: path
-          name: path
-          required: true
-          schema:
-            type: string
-        - in: header
-          name: Range
-          required: false
-          schema:
-            type: string
-          example: bytes=0-1023
+      - in: path
+        name: path
+        required: true
+        schema:
+          type: string
+      - in: header
+        name: Range
+        required: false
+        schema:
+          type: string
+        example: bytes=0-1023
       responses:
-        "200":
+        '200':
           description: Video content
           content:
             video/mp4:
               schema:
                 type: string
                 format: binary
-        "206":
+        '206':
           description: Partial video content
           content:
             video/mp4:
               schema:
                 type: string
                 format: binary
-
   /users/add_music:
     post:
-      tags: [compatibility]
+      tags:
+      - compatibility
       summary: Add favorite in legacy monolith API
       operationId: addMusicLegacy
       requestBody:
@@ -1760,82 +1711,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AddMusicRequest"
+              $ref: '#/components/schemas/AddMusicRequest'
       responses:
-        "200":
+        '200':
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
-        "404":
-          $ref: "#/components/responses/ErrorEnvelope"
-        "500":
-          $ref: "#/components/responses/ErrorEnvelope"
-
-  /records:
-    get:
-      tags: [compatibility]
-      summary: Legacy records endpoint
-      operationId: getLegacyRecords
-      responses:
-        "200":
-          description: Empty array
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-
-  /add:
-    post:
-      tags: [compatibility]
-      summary: Legacy add endpoint
-      operationId: postLegacyAdd
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/EnvelopeSuccessBool"
-
-  /stats:
-    get:
-      tags: [system]
-      summary: Basic runtime stats
-      operationId: getStats
-      responses:
-        "200":
-          description: Stats
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/StatsResponse"
-
-  /ack:
-    get:
-      tags: [compatibility]
-      summary: Legacy ack endpoint
-      operationId: getAck
-      responses:
-        "200":
-          description: Empty body
-
-  /:
-    get:
-      tags: [system]
-      summary: Root welcome page
-      operationId: getRootPage
-      responses:
-        "200":
-          description: HTML page
-          content:
-            text/html:
-              schema:
-                type: string
-
+                $ref: '#/components/schemas/EnvelopeSuccessBool'
+        '404':
+          $ref: '#/components/responses/ErrorEnvelope'
+        '500':
+          $ref: '#/components/responses/ErrorEnvelope'
 components:
   responses:
     ErrorEnvelope:
@@ -1843,8 +1730,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorEnvelope"
-
+            $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
     HealthResponse:
       type: object
@@ -1859,8 +1745,11 @@ components:
         timestamp:
           type: integer
           format: int64
-      required: [database, redis, status, timestamp]
-
+      required:
+      - database
+      - redis
+      - status
+      - timestamp
     EnvelopeClientPing:
       type: object
       properties:
@@ -1871,9 +1760,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/ClientPingData"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/ClientPingData'
+      required:
+      - code
+      - message
+      - data
     ClientPingData:
       type: object
       properties:
@@ -1885,15 +1776,19 @@ components:
           example: ok
         api_version:
           type: string
-          example: "2026-03-03"
+          example: '2026-03-03'
         timestamp:
           type: integer
           format: int64
         server_time:
           type: string
-          example: "2026-03-03T10:00:00+08:00"
-      required: [service, status, api_version, timestamp, server_time]
-
+          example: '2026-03-03T10:00:00+08:00'
+      required:
+      - service
+      - status
+      - api_version
+      - timestamp
+      - server_time
     EnvelopeClientBootstrap:
       type: object
       properties:
@@ -1904,9 +1799,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/ClientBootstrapData"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/ClientBootstrapData'
+      required:
+      - code
+      - message
+      - data
     ClientBootstrapData:
       type: object
       properties:
@@ -1915,7 +1812,7 @@ components:
           example: cloudmusic-server
         api_version:
           type: string
-          example: "2026-03-03"
+          example: '2026-03-03'
         ready:
           type: boolean
         timestamp:
@@ -1923,10 +1820,10 @@ components:
           format: int64
         server_time:
           type: string
-          example: "2026-03-03T10:00:00+08:00"
+          example: '2026-03-03T10:00:00+08:00'
         public_base_url:
           type: string
-          example: "http://127.0.0.1:8080"
+          example: http://127.0.0.1:8080
         checks:
           type: object
           properties:
@@ -1934,7 +1831,9 @@ components:
               type: boolean
             redis:
               type: boolean
-          required: [database, redis]
+          required:
+          - database
+          - redis
         endpoints:
           type: object
           properties:
@@ -1946,9 +1845,20 @@ components:
               type: string
             login:
               type: string
-          required: [ping, bootstrap, register, login]
-      required: [service, api_version, ready, timestamp, server_time, public_base_url, checks, endpoints]
-
+          required:
+          - ping
+          - bootstrap
+          - register
+          - login
+      required:
+      - service
+      - api_version
+      - ready
+      - timestamp
+      - server_time
+      - public_base_url
+      - checks
+      - endpoints
     StatsResponse:
       type: object
       properties:
@@ -1957,12 +1867,14 @@ components:
           example: ok
         version:
           type: string
-          example: "2.0"
+          example: '2.0'
         timestamp:
           type: integer
           format: int64
-      required: [status, version, timestamp]
-
+      required:
+      - status
+      - version
+      - timestamp
     ErrorEnvelope:
       type: object
       properties:
@@ -1970,8 +1882,9 @@ components:
           type: integer
         message:
           type: string
-      required: [code, message]
-
+      required:
+      - code
+      - message
     EnvelopeSuccessBool:
       type: object
       properties:
@@ -1986,9 +1899,12 @@ components:
           properties:
             success:
               type: boolean
-          required: [success]
-      required: [code, message, data]
-
+          required:
+          - success
+      required:
+      - code
+      - message
+      - data
     EnvelopeUploadPath:
       type: object
       properties:
@@ -2003,11 +1919,16 @@ components:
           properties:
             filePath:
               type: string
-      required: [code, message, data]
-
+      required:
+      - code
+      - message
+      - data
     RegisterRequest:
       type: object
-      required: [account, password, username]
+      required:
+      - account
+      - password
+      - username
       properties:
         account:
           type: string
@@ -2015,22 +1936,24 @@ components:
           type: string
         username:
           type: string
-
     LoginRequest:
       type: object
-      required: [account, password]
+      required:
+      - account
+      - password
       properties:
         account:
           type: string
         password:
           type: string
-
     LoginResponse:
       type: object
       properties:
         success:
           type: string
-          enum: ["true", "false"]
+          enum:
+          - 'true'
+          - 'false'
         success_bool:
           type: boolean
         username:
@@ -2047,11 +1970,17 @@ components:
           type: integer
         online_ttl_sec:
           type: integer
-      required: [success, success_bool, username, song_path_list]
-
+      required:
+      - success
+      - success_bool
+      - username
+      - song_path_list
     UpdateUsernameRequest:
       type: object
-      required: [account, session_token, username]
+      required:
+      - account
+      - session_token
+      - username
       properties:
         account:
           type: string
@@ -2059,7 +1988,6 @@ components:
           type: string
         username:
           type: string
-
     EnvelopeUserProfile:
       type: object
       properties:
@@ -2070,9 +1998,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/UserProfile"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/UserProfile'
+      required:
+      - code
+      - message
+      - data
     UserProfile:
       type: object
       properties:
@@ -2088,8 +2018,9 @@ components:
         updated_at:
           type: string
           format: date-time
-      required: [account, username]
-
+      required:
+      - account
+      - username
     EnvelopeUpdateUsernameResponse:
       type: object
       properties:
@@ -2100,9 +2031,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/UpdateUsernameResponse"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/UpdateUsernameResponse'
+      required:
+      - code
+      - message
+      - data
     UpdateUsernameResponse:
       type: object
       properties:
@@ -2112,8 +2045,10 @@ components:
           type: string
         username:
           type: string
-      required: [success, message, username]
-
+      required:
+      - success
+      - message
+      - username
     EnvelopeUploadAvatarResponse:
       type: object
       properties:
@@ -2124,9 +2059,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/UploadAvatarResponse"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/UploadAvatarResponse'
+      required:
+      - code
+      - message
+      - data
     UploadAvatarResponse:
       type: object
       properties:
@@ -2138,8 +2075,11 @@ components:
           type: string
         avatar_path:
           type: string
-      required: [success, message, avatar_url, avatar_path]
-
+      required:
+      - success
+      - message
+      - avatar_url
+      - avatar_path
     UserPingRequest:
       type: object
       properties:
@@ -2147,7 +2087,6 @@ components:
           type: string
         username:
           type: string
-
     OnlineSessionStartRequest:
       type: object
       properties:
@@ -2157,10 +2096,10 @@ components:
           type: string
         device_id:
           type: string
-
     OnlineHeartbeatRequest:
       type: object
-      required: [session_token]
+      required:
+      - session_token
       properties:
         account:
           type: string
@@ -2170,10 +2109,10 @@ components:
           type: string
         device_id:
           type: string
-
     OnlineLogoutRequest:
       type: object
-      required: [session_token]
+      required:
+      - session_token
       properties:
         account:
           type: string
@@ -2181,7 +2120,6 @@ components:
           type: string
         session_token:
           type: string
-
     EnvelopeOnlineSession:
       type: object
       properties:
@@ -2192,9 +2130,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/OnlineSessionResponse"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/OnlineSessionResponse'
+      required:
+      - code
+      - message
+      - data
     OnlineSessionResponse:
       type: object
       properties:
@@ -2212,8 +2152,13 @@ components:
         expire_at:
           type: integer
           format: int64
-      required: [account, session_token, heartbeat_interval_sec, online_ttl_sec, last_seen_at, expire_at]
-
+      required:
+      - account
+      - session_token
+      - heartbeat_interval_sec
+      - online_ttl_sec
+      - last_seen_at
+      - expire_at
     EnvelopeOnlineStatus:
       type: object
       properties:
@@ -2224,9 +2169,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/OnlineStatusResponse"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/OnlineStatusResponse'
+      required:
+      - code
+      - message
+      - data
     OnlineStatusResponse:
       type: object
       properties:
@@ -2244,8 +2191,13 @@ components:
           type: integer
         online_ttl_sec:
           type: integer
-      required: [account, online, last_seen_at, ttl_remaining_sec, heartbeat_interval_sec, online_ttl_sec]
-
+      required:
+      - account
+      - online
+      - last_seen_at
+      - ttl_remaining_sec
+      - heartbeat_interval_sec
+      - online_ttl_sec
     EnvelopeRecommendationList:
       type: object
       properties:
@@ -2256,9 +2208,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/RecommendationListData"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/RecommendationListData'
+      required:
+      - code
+      - message
+      - data
     RecommendationListData:
       type: object
       properties:
@@ -2275,9 +2229,13 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/RecommendationItem"
-      required: [request_id, user_id, scene, model_version, items]
-
+            $ref: '#/components/schemas/RecommendationItem'
+      required:
+      - request_id
+      - user_id
+      - scene
+      - model_version
+      - items
     RecommendationItem:
       type: object
       properties:
@@ -2309,12 +2267,26 @@ components:
           type: string
         source:
           type: string
-          enum: [cf, content, hot, hybrid]
-      required: [song_id, path, title, artist, stream_url, score, reason, source]
-
+          enum:
+          - cf
+          - content
+          - hot
+          - hybrid
+      required:
+      - song_id
+      - path
+      - title
+      - artist
+      - stream_url
+      - score
+      - reason
+      - source
     RecommendationFeedbackRequest:
       type: object
-      required: [user_id, song_id, event_type]
+      required:
+      - user_id
+      - song_id
+      - event_type
       properties:
         user_id:
           type: string
@@ -2322,7 +2294,15 @@ components:
           type: string
         event_type:
           type: string
-          enum: [impression, click, play, finish, like, skip, share, dislike]
+          enum:
+          - impression
+          - click
+          - play
+          - finish
+          - like
+          - skip
+          - share
+          - dislike
         play_ms:
           type: integer
           format: int64
@@ -2331,7 +2311,10 @@ components:
           format: int64
         scene:
           type: string
-          enum: [home, radio, detail]
+          enum:
+          - home
+          - radio
+          - detail
         request_id:
           type: string
         model_version:
@@ -2339,7 +2322,6 @@ components:
         event_at:
           type: string
           format: date-time
-
     RecommendationRetrainRequest:
       type: object
       properties:
@@ -2349,7 +2331,6 @@ components:
         force_full:
           type: boolean
           default: false
-
     EnvelopeTaskAccepted:
       type: object
       properties:
@@ -2367,9 +2348,13 @@ components:
             status:
               type: string
               example: queued
-          required: [task_id, status]
-      required: [code, message, data]
-
+          required:
+          - task_id
+          - status
+      required:
+      - code
+      - message
+      - data
     EnvelopeModelStatus:
       type: object
       properties:
@@ -2380,9 +2365,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/RecommendationModelStatus"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/RecommendationModelStatus'
+      required:
+      - code
+      - message
+      - data
     RecommendationModelStatus:
       type: object
       properties:
@@ -2399,41 +2386,45 @@ components:
         metrics:
           type: object
           additionalProperties: true
-      required: [model_name, model_version, status]
-
+      required:
+      - model_name
+      - model_version
+      - status
     AddMusicRequest:
       type: object
-      required: [username, music_path]
+      required:
+      - username
+      - music_path
       properties:
         username:
           type: string
         music_path:
           type: string
-
     StreamRequest:
       type: object
-      required: [filename]
+      required:
+      - filename
       properties:
         filename:
           type: string
-
     ArtistRequest:
       type: object
-      required: [artist]
+      required:
+      - artist
       properties:
         artist:
           type: string
-
     SearchRequest:
       type: object
-      required: [keyword]
+      required:
+      - keyword
       properties:
         keyword:
           type: string
-
     ExternalMusicSearchRequest:
       type: object
-      required: [keyword]
+      required:
+      - keyword
       properties:
         keyword:
           type: string
@@ -2441,7 +2432,6 @@ components:
           type: integer
           minimum: 1
           maximum: 200
-
     ExternalMusicTrack:
       type: object
       properties:
@@ -2475,18 +2465,25 @@ components:
           type: boolean
         lang:
           type: string
-      required: [source, source_id, title, artist, stream_url, download_allowed, explicit]
-
+      required:
+      - source
+      - source_id
+      - title
+      - artist
+      - stream_url
+      - download_allowed
+      - explicit
     ArtistExistsResponse:
       type: object
       properties:
         exists:
           type: boolean
-      required: [exists]
-
+      required:
+      - exists
     FileListItem:
       type: object
-      description: Legacy search/list item. For Jamendo-compatible search results, `path` is a virtual filename rather than a local relative path.
+      description: Legacy search/list item. For Jamendo-compatible search results, `path` is a virtual filename rather than
+        a local relative path.
       properties:
         path:
           type: string
@@ -2497,11 +2494,13 @@ components:
         cover_art_url:
           type: string
           nullable: true
-      required: [path, duration]
-
+      required:
+      - path
+      - duration
     MusicResponse:
       type: object
-      description: Legacy playback response. `stream_url` may point to local uploads or Jamendo upstream audio depending on the requested filename/path.
+      description: Legacy playback response. `stream_url` may point to local uploads or Jamendo upstream audio depending on
+        the requested filename/path.
       properties:
         stream_url:
           type: string
@@ -2521,11 +2520,12 @@ components:
           type: string
         album:
           type: string
-      required: [stream_url]
-
+      required:
+      - stream_url
     AddFavoriteRequest:
       type: object
-      required: [music_path]
+      required:
+      - music_path
       properties:
         music_path:
           type: string
@@ -2538,7 +2538,6 @@ components:
           format: double
         is_local:
           type: boolean
-
     RemoveFavoriteRequest:
       type: object
       properties:
@@ -2546,10 +2545,10 @@ components:
           type: string
         music_path:
           type: string
-
     AddPlayHistoryRequest:
       type: object
-      required: [music_path]
+      required:
+      - music_path
       properties:
         music_path:
           type: string
@@ -2564,19 +2563,19 @@ components:
           format: double
         is_local:
           type: boolean
-
     DeletePlayHistoryRequest:
       type: object
-      required: [music_paths]
+      required:
+      - music_paths
       properties:
         music_paths:
           type: array
           items:
             type: string
-
     CreatePlaylistRequest:
       type: object
-      required: [name]
+      required:
+      - name
       properties:
         name:
           type: string
@@ -2584,10 +2583,10 @@ components:
           type: string
         cover_path:
           type: string
-
     UpdatePlaylistRequest:
       type: object
-      required: [name]
+      required:
+      - name
       properties:
         name:
           type: string
@@ -2595,10 +2594,11 @@ components:
           type: string
         cover_path:
           type: string
-
     PlaylistTrackInput:
       type: object
-      required: [music_path, is_local]
+      required:
+      - music_path
+      - is_local
       properties:
         music_path:
           type: string
@@ -2615,43 +2615,43 @@ components:
           type: boolean
         cover_art_path:
           type: string
-
     AddPlaylistItemsRequest:
       type: object
-      required: [items]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PlaylistTrackInput"
-
+            $ref: '#/components/schemas/PlaylistTrackInput'
     RemovePlaylistItemsRequest:
       type: object
-      required: [music_paths]
+      required:
+      - music_paths
       properties:
         music_paths:
           type: array
           items:
             type: string
-
     PlaylistReorderItem:
       type: object
-      required: [music_path, position]
+      required:
+      - music_path
+      - position
       properties:
         music_path:
           type: string
         position:
           type: integer
-
     ReorderPlaylistItemsRequest:
       type: object
-      required: [items]
+      required:
+      - items
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PlaylistReorderItem"
-
+            $ref: '#/components/schemas/PlaylistReorderItem'
     PlaylistSummary:
       type: object
       properties:
@@ -2673,7 +2673,6 @@ components:
           type: string
         updated_at:
           type: string
-
     PlaylistItem:
       type: object
       properties:
@@ -2699,7 +2698,6 @@ components:
           type: string
         added_at:
           type: string
-
     PlaylistDetail:
       type: object
       properties:
@@ -2724,22 +2722,20 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PlaylistItem"
-
+            $ref: '#/components/schemas/PlaylistItem'
     PlaylistListResponse:
       type: object
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PlaylistSummary"
+            $ref: '#/components/schemas/PlaylistSummary'
         page:
           type: integer
         page_size:
           type: integer
         total:
           type: integer
-
     PlaylistCreateResponse:
       type: object
       properties:
@@ -2750,8 +2746,10 @@ components:
         playlist_id:
           type: integer
           format: int64
-      required: [success, message, playlist_id]
-
+      required:
+      - success
+      - message
+      - playlist_id
     PlaylistAddItemsResponse:
       type: object
       properties:
@@ -2765,8 +2763,11 @@ components:
         skipped_count:
           type: integer
           format: int64
-      required: [success, message, added_count, skipped_count]
-
+      required:
+      - success
+      - message
+      - added_count
+      - skipped_count
     ActionResponse:
       type: object
       properties:
@@ -2774,11 +2775,16 @@ components:
           type: boolean
         message:
           type: string
-      required: [success, message]
-
+      required:
+      - success
+      - message
     CreateMusicCommentRequest:
       type: object
-      required: [user_account, session_token, music_path, content]
+      required:
+      - user_account
+      - session_token
+      - music_path
+      - content
       properties:
         user_account:
           type: string
@@ -2792,10 +2798,12 @@ components:
           type: string
         content:
           type: string
-
     CreateMusicReplyRequest:
       type: object
-      required: [user_account, session_token, content]
+      required:
+      - user_account
+      - session_token
+      - content
       properties:
         user_account:
           type: string
@@ -2806,16 +2814,16 @@ components:
         target_comment_id:
           type: integer
           format: int64
-
     DeleteMusicCommentRequest:
       type: object
-      required: [user_account, session_token]
+      required:
+      - user_account
+      - session_token
       properties:
         user_account:
           type: string
         session_token:
           type: string
-
     CommentReplyTo:
       type: object
       properties:
@@ -2826,8 +2834,10 @@ components:
           type: string
         username:
           type: string
-      required: [comment_id, user_account, username]
-
+      required:
+      - comment_id
+      - user_account
+      - username
     CommentItem:
       type: object
       properties:
@@ -2852,9 +2862,14 @@ components:
         reply_count:
           type: integer
         reply_to:
-          $ref: "#/components/schemas/CommentReplyTo"
-      required: [comment_id, user_account, username, content, is_deleted, created_at]
-
+          $ref: '#/components/schemas/CommentReplyTo'
+      required:
+      - comment_id
+      - user_account
+      - username
+      - content
+      - is_deleted
+      - created_at
     CommentThreadResponse:
       type: object
       properties:
@@ -2881,9 +2896,15 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/CommentItem"
-      required: [music_path, source, root_comment_count, total_comment_count, page, page_size, items]
-
+            $ref: '#/components/schemas/CommentItem'
+      required:
+      - music_path
+      - source
+      - root_comment_count
+      - total_comment_count
+      - page
+      - page_size
+      - items
     CommentRepliesResponse:
       type: object
       properties:
@@ -2899,9 +2920,13 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/CommentItem"
-      required: [root_comment_id, page, page_size, total, items]
-
+            $ref: '#/components/schemas/CommentItem'
+      required:
+      - root_comment_id
+      - page
+      - page_size
+      - total
+      - items
     CommentActionResponse:
       type: object
       properties:
@@ -2913,9 +2938,10 @@ components:
           type: integer
           format: int64
         comment:
-          $ref: "#/components/schemas/CommentItem"
-      required: [success, message]
-
+          $ref: '#/components/schemas/CommentItem'
+      required:
+      - success
+      - message
     DeleteActionResponse:
       type: object
       properties:
@@ -2925,8 +2951,10 @@ components:
           type: string
         deleted_count:
           type: integer
-      required: [success, message, deleted_count]
-
+      required:
+      - success
+      - message
+      - deleted_count
     MusicItem:
       type: object
       properties:
@@ -2951,9 +2979,8 @@ components:
         play_time:
           type: string
           nullable: true
-      required: [path]
-
-
+      required:
+      - path
     HotChartResponse:
       type: object
       properties:
@@ -2963,16 +2990,23 @@ components:
           type: string
         window:
           type: string
-          enum: [7d, 30d, all]
+          enum:
+          - 7d
+          - 30d
+          - all
         generated_at:
           type: string
           format: date-time
         items:
           type: array
           items:
-            $ref: "#/components/schemas/HotChartItem"
-      required: [chart_id, title, window, generated_at, items]
-
+            $ref: '#/components/schemas/HotChartItem'
+      required:
+      - chart_id
+      - title
+      - window
+      - generated_at
+      - items
     HotChartItem:
       type: object
       properties:
@@ -2996,20 +3030,31 @@ components:
           nullable: true
         source:
           type: string
-          enum: [catalog, jamendo]
+          enum:
+          - catalog
+          - jamendo
         source_id:
           type: string
         play_count:
           type: integer
           format: int64
-      required: [rank, music_path, path, title, source, source_id, play_count]
-
+      required:
+      - rank
+      - music_path
+      - path
+      - title
+      - source
+      - source_id
+      - play_count
     HotChartRebuildResponse:
       type: object
       properties:
         window:
           type: string
-          enum: [7d, 30d, all]
+          enum:
+          - 7d
+          - 30d
+          - all
         rebuilt_buckets:
           type: integer
         rebuilt_items:
@@ -3018,8 +3063,11 @@ components:
         generated_at:
           type: string
           format: date-time
-      required: [window, rebuilt_buckets, rebuilt_items, generated_at]
-
+      required:
+      - window
+      - rebuilt_buckets
+      - rebuilt_items
+      - generated_at
     EnvelopeHotChartRebuildResponse:
       type: object
       properties:
@@ -3030,9 +3078,11 @@ components:
           type: string
           example: success
         data:
-          $ref: "#/components/schemas/HotChartRebuildResponse"
-      required: [code, message, data]
-
+          $ref: '#/components/schemas/HotChartRebuildResponse'
+      required:
+      - code
+      - message
+      - data
     ErrorResponse:
       type: object
       properties:
@@ -3040,15 +3090,16 @@ components:
           type: integer
         message:
           type: string
-      required: [code, message]
+      required:
+      - code
+      - message
     DownloadPostRequest:
       type: object
-      required: [filename]
+      required:
+      - filename
       properties:
         filename:
           type: string
-
-
     LocalSeekIndexPoint:
       type: object
       properties:
@@ -3058,8 +3109,9 @@ components:
         byte_offset:
           type: integer
           format: int64
-      required: [time_ms, byte_offset]
-
+      required:
+      - time_ms
+      - byte_offset
     LocalSeekIndexResponse:
       type: object
       properties:
@@ -3081,9 +3133,15 @@ components:
         points:
           type: array
           items:
-            $ref: "#/components/schemas/LocalSeekIndexPoint"
-      required: [music_path, supported, format, duration_ms, file_size, version, points]
-
+            $ref: '#/components/schemas/LocalSeekIndexPoint'
+      required:
+      - music_path
+      - supported
+      - format
+      - duration_ms
+      - file_size
+      - version
+      - points
     LocalPlaybackInfoResponse:
       type: object
       properties:
@@ -3100,8 +3158,13 @@ components:
           type: string
         version:
           type: string
-      required: [music_path, duration_ms, direct_url, hls_supported, hls_manifest_url, version]
-
+      required:
+      - music_path
+      - duration_ms
+      - direct_url
+      - hls_supported
+      - hls_manifest_url
+      - version
     VideoFile:
       type: object
       properties:
@@ -3112,18 +3175,21 @@ components:
         size:
           type: integer
           format: int64
-      required: [name, path, size]
-
+      required:
+      - name
+      - path
+      - size
     VideoStreamRequest:
       type: object
-      required: [path]
+      required:
+      - path
       properties:
         path:
           type: string
-
     VideoStreamResponse:
       type: object
       properties:
         url:
           type: string
-      required: [url]
+      required:
+      - url
