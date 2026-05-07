@@ -41,3 +41,30 @@
 5. `GET /music/charts/hot`
 6. `GET /recommendations/audio`
 7. `GET /music/local/playback-info?music_path=<relative_path>`
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 当前 Apifox 使用补充
+
+当前推荐导入文件仍为 docs/apifox-client-openapi.yaml，默认 VM 环境为：
+
+`	ext
+baseUrl = http://192.168.1.208:8080
+`
+
+导入后建议在 Apifox 中按模块生成或维护测试用例：
+
+1. 基础连通：GET /client/ping、GET /client/bootstrap。
+2. 登录态：POST /users/login，保存 account 和 online_session_token。
+3. 曲库与播放辅助：GET /files、POST /stream、GET /music/local/playback-info、GET /music/local/seek-index。
+4. 推荐与榜单：GET /recommendations/audio、GET /recommendations/similar/{song_id}、POST /recommendations/feedback、GET /music/charts/hot。
+5. 用户资产：收藏、历史、歌单增删改查与排序。
+6. 评论：GET /music/comments、POST /music/comments、GET /music/comments/{comment_id}/replies、POST /music/comments/{comment_id}/replies、POST /music/comments/{comment_id}/delete。
+7. 资料与在线状态：GET /users/profile、POST /users/profile/username、POST /users/profile/avatar、在线心跳与主动下线。
+
+维护时必须保证：
+
+- docs/openapi.yaml 是完整规范源。
+- docs/apifox-client-openapi.yaml 只保留桌面客户端需要的接口。
+- 提交前运行 ./scripts/check_openapi_client_scope.sh。
+- 不把 /admin/*、/records、/add、/stats、/ack、/ 等后台或历史测试接口导入客户端 Apifox 集合。
+<!-- 2026-05-07-doc-sync:end -->

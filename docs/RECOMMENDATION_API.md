@@ -242,3 +242,18 @@ curl "http://127.0.0.1:8080/recommendations/similar/jay%2F%E4%B8%83%E9%87%8C%E9%
 2. `song_id` 是否与服务端 `music_files.path` 一致（路径大小写、编码）
 3. URL Path Encode 是否正确处理中文与空格
 4. 反馈事件是否覆盖至少 `play/finish/skip/like`
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 推荐与热歌榜联调补充
+
+当前推荐相关客户端能力分为四类：
+
+1. GET /recommendations/audio：首页或推荐页个性化推荐。
+2. GET /recommendations/similar/{song_id}：播放页或歌曲详情页相似推荐。
+3. POST /recommendations/feedback：播放、喜欢、跳过等行为反馈。
+4. GET /music/charts/hot：在线热歌榜，支持 window=7d|30d|all 和 limit。
+
+热歌榜不是客户端本地排序，而是服务端基于在线歌曲播放热度生成。当前桌面客户端默认请求最近 30 天榜单，并允许切换 7 天、30 天和全部周期。
+
+推荐接口通常需要登录态；热歌榜可作为公开浏览接口，但榜单歌曲的收藏、加歌单、评论、反馈等写操作仍按对应业务接口的登录态要求执行。
+<!-- 2026-05-07-doc-sync:end -->

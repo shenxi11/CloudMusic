@@ -1,12 +1,14 @@
 openapi: 3.0.3
 info:
   title: Music Platform Gateway API
-  version: "2026-03-04"
+  version: "2026-05-07"
   description: |
     Gateway API for the split architecture deployment.
     Base gateway: http://127.0.0.1:8080
-    Verified with live tests on 2026-03-04.
+    Verified with live tests on 2026-03-04. Documentation metadata refreshed for VM client integration on 2026-05-07.
 servers:
+  - url: http://192.168.1.208:8080
+    description: VM deployment gateway
   - url: http://127.0.0.1:8080
     description: Local gateway
   - url: http://slcdut.xyz:8080

@@ -380,3 +380,17 @@ curl "http://127.0.0.1:8080/user/playlists/12?user_account=root"
 3. 公开歌单与分享能力
 4. 协作编辑
 5. 统一 `song_id` 后从 `music_path` 迁移到独立曲目标识
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 客户端接入补充
+
+当前桌面客户端的“我的歌单”与左侧歌单区均使用本接口组。客户端需要关注以下约定：
+
+- 登录态身份优先使用 user_account query 或 X-User-Account header。
+- 歌单列表区分自建与收藏展示，当前主要使用私有自建歌单能力。
+- 歌单详情项允许服务端在线歌曲和客户端本地歌曲混合存在。
+- 本地歌曲入歌单时需要传 is_local=true，并尽量携带 title、artist、duration_sec、cover_art_path 等显示字段。
+- 客户端删除、排序、批量加歌后应刷新歌单详情和左侧歌单摘要。
+
+OpenAPI 路径以 docs/openapi.yaml 和 docs/apifox-client-openapi.yaml 中 /user/playlists 及其子路径为准。
+<!-- 2026-05-07-doc-sync:end -->

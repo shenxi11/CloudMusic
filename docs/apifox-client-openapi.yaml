@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: CloudMusic Client API for Apifox
-  version: '2026-03-04'
-  description: 'Desktop-client-facing CloudMusic API collection. Source of truth: docs/openapi.yaml.'
+  version: '2026-05-07'
+  description: 'Desktop-client-facing CloudMusic API collection. Source of truth: docs/openapi.yaml. Refreshed for VM client integration on 2026-05-07.'
 servers:
 - url: http://192.168.1.208:8080
   description: VM deployment gateway

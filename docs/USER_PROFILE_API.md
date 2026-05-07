@@ -225,3 +225,17 @@ curl -X POST "http://127.0.0.1:8080/users/profile/avatar" \
 3. 不影响 `/users/online/*`
 4. 不影响旧兼容收藏链路 `/users/add_music`
 5. 登录响应新增 `avatar_url` 字段，客户端可直接读取
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 客户端资料页补充
+
+当前桌面客户端个人主页使用本接口组完成资料展示和编辑：
+
+- GET /users/profile：打开个人主页或刷新资料时调用。
+- POST /users/profile/username：保存新用户名时调用。
+- POST /users/profile/avatar：上传头像文件时调用。
+
+客户端登录成功后会缓存 username、avatar_url 和 online_session_token。左侧导航顶部账号入口、用户弹窗和个人主页应共享同一份资料状态。头像上传成功后，客户端可在头像 URL 后追加时间戳参数避免图片缓存。
+
+所有资料写操作都必须携带当前账号和有效 session_token。401 表示会话失效，客户端应引导用户重新登录。
+<!-- 2026-05-07-doc-sync:end -->

@@ -99,3 +99,23 @@ curl -s http://127.0.0.1:8080/client/bootstrap
 - 两个接口均无需登录，不会改写业务数据。
 - 对应网关（Docker 与 split Nginx）已增加路由转发规则。
 - OpenAPI 已同步：`docs/openapi.yaml`。
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 VM 联调补充
+
+当前客户端默认联调环境为：
+
+`	ext
+http://192.168.1.208:8080
+`
+
+推荐客户端启动验证顺序：
+
+1. GET /client/ping：确认网关可达且服务标识为 CloudMusic。
+2. GET /client/bootstrap：确认 ready=true，并读取 public_base_url、登录注册入口和依赖检查结果。
+3. 进入登录页后调用 POST /users/login。
+4. 登录成功后保存 account、username、avatar_url、online_session_token。
+5. 启动在线心跳：POST /users/online/heartbeat。
+
+若客户端选择离线直进，则不调用登录、推荐、评论、歌单、热歌榜等需要服务端的能力；本地播放、已下载列表和本地设置仍可用。
+<!-- 2026-05-07-doc-sync:end -->

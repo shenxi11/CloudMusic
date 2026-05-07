@@ -187,3 +187,18 @@
 
 - `POST /users/ping` 仍可用（兼容旧客户端），但不做 token 强校验。
 - 新客户端应优先使用 `/users/online/*` 全套接口。
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 客户端在线状态补充
+
+当前桌面客户端推荐流程：
+
+1. 登录成功后读取 online_session_token。
+2. 进入主窗口后按固定间隔调用 POST /users/online/heartbeat。
+3. 退出登录、返回欢迎页或关闭应用时调用 POST /users/online/logout。
+4. 需要展示在线状态时调用 GET /users/online/status。
+
+服务端允许同账号多会话并存，每个 token 独立续期和失效。客户端不应继续依赖旧 /users/ping 作为主在线状态方案；该接口只作为兼容旧客户端保留。
+
+离线直进模式不创建在线会话，也不发送心跳。
+<!-- 2026-05-07-doc-sync:end -->

@@ -572,3 +572,21 @@ kill -9 $(cat music_server.pid)
 ---
 
 **祝您使用愉快！** 🎉
+
+<!-- 2026-05-07-doc-sync:start -->
+## 2026-05-07 当前客户端联调与文档基线
+
+当前 VM 正式联调地址为 http://192.168.1.208:8080，桌面客户端默认按该地址验证服务端连通性。服务端当前面向客户端的主要能力包括：启动探活与 bootstrap、账号与在线会话、用户资料、曲库搜索、在线热歌榜、在线音乐评论、收藏与播放历史、私有歌单、推荐与相似推荐、媒体上传下载、本地播放 HLS/seek 辅助接口、视频列表与视频流地址。
+
+客户端接口统一管理以 docs/openapi.yaml 为完整事实源，以 docs/apifox-client-openapi.yaml 为 Apifox 客户端裁剪导入文件。客户端联调时优先导入 Apifox 文件，并配置环境 baseUrl=http://192.168.1.208:8080。
+
+当前文档入口建议：
+
+- docs/APIFOX_CLIENT_API.md：Apifox 导入、环境变量和测试顺序。
+- docs/CLIENT_CONNECT_API.md：客户端启动连接验证。
+- docs/PROJECT_THESIS_OVERVIEW.md：毕业设计论文可引用的服务端架构说明。
+- docs/PLAYLIST_API.md：私有歌单接口。
+- docs/RECOMMENDATION_API.md：推荐、相似推荐与反馈接口。
+- docs/USER_PROFILE_API.md：用户资料、用户名、头像接口。
+- docs/ONLINE_PRESENCE_API.md：在线会话、心跳和主动下线接口。
+<!-- 2026-05-07-doc-sync:end -->
