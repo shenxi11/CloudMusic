@@ -51,6 +51,9 @@ server:
   static_dir: ""
   upload_dir: "/data/uploads"
   video_dir: "/data/video"
+  video_hls_dir: "/data/video_hls"
+  ffmpeg_binary: "ffmpeg"
+  ffprobe_binary: "ffprobe"
   enable_tls: false
   cert_file: ""
   key_file: ""

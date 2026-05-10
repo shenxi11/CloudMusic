@@ -18,6 +18,9 @@ type ServerConfig struct {
 	UploadDir     string `yaml:"upload_dir"`
 	StaticDir     string `yaml:"static_dir"`
 	VideoDir      string `yaml:"video_dir"`
+	VideoHLSDir   string `yaml:"video_hls_dir"`
+	FFmpegBinary  string `yaml:"ffmpeg_binary"`
+	FFprobeBinary string `yaml:"ffprobe_binary"`
 	// TLS/HTTPS 配置
 	EnableTLS bool   `yaml:"enable_tls"` // 是否启用 HTTPS
 	CertFile  string `yaml:"cert_file"`  // TLS 证书文件路径

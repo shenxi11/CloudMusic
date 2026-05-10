@@ -18,9 +18,10 @@ GATEWAY_HEALTH_URL="http://127.0.0.1:8080/health"
 UPLOADS_ROOT="${UPLOADS_ROOT:-$SCRIPT_DIR/uploads}"
 VIDEO_ROOT="${VIDEO_ROOT:-$SCRIPT_DIR/video}"
 HLS_ROOT="${HLS_ROOT:-$SCRIPT_DIR/uploads_hls}"
+VIDEO_HLS_ROOT="${VIDEO_HLS_ROOT:-$SCRIPT_DIR/video_hls}"
 
 render_nginx_conf() {
-  python3 - "$NGINX_TEMPLATE" "$NGINX_CONF" "$UPLOADS_ROOT" "$VIDEO_ROOT" "$HLS_ROOT" <<'PY'
+  python3 - "$NGINX_TEMPLATE" "$NGINX_CONF" "$UPLOADS_ROOT" "$VIDEO_ROOT" "$HLS_ROOT" "$VIDEO_HLS_ROOT" <<'PY'
 from pathlib import Path
 import sys
 
@@ -33,6 +34,7 @@ text = template_path.read_text(encoding='utf-8')
 text = text.replace('__UPLOADS_ROOT__', uploads_root)
 text = text.replace('__VIDEO_ROOT__', video_root)
 text = text.replace('__HLS_ROOT__', hls_root)
+text = text.replace('__VIDEO_HLS_ROOT__', video_hls_root)
 output_path.write_text(text, encoding='utf-8')
 PY
 }
@@ -95,6 +97,7 @@ mkdir -p \
   "$NGINX_PREFIX/temp/uwsgi" \
   "$NGINX_PREFIX/temp/scgi" \
   "$HLS_ROOT"
+  "$VIDEO_HLS_ROOT"
 render_nginx_conf
 
 if [ ! -d "$UPLOADS_ROOT" ]; then
@@ -256,5 +259,6 @@ echo "  事件消费器: active"
 echo "  对外健康: $GATEWAY_HEALTH_URL"
 echo "  静态 uploads: $UPLOADS_ROOT"
 echo "  静态 hls: $HLS_ROOT"
+echo "  静态 video hls: $VIDEO_HLS_ROOT"
 echo "  静态 video: $VIDEO_ROOT"
 echo "  资源入口: http://127.0.0.1:8080/uploads/... 和 /video/..."

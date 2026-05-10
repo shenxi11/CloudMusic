@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"music-platform/internal/video/model"
 )
@@ -14,17 +15,43 @@ import (
 type VideoService interface {
 	GetVideoList(ctx context.Context) ([]*model.VideoFile, error)
 	GetVideoStreamURL(ctx context.Context, videoPath string, baseURL string) (string, error)
+	GetVideoPlaybackInfo(ctx context.Context, videoPath string, baseURL string) (*model.VideoPlaybackInfoResponse, error)
 }
 
 type videoService struct {
-	videoDir string // 视频目录路径
+	videoDir              string // 视频目录路径
+	videoHLSDir           string
+	ffmpegBinary          string
+	ffprobeBinary         string
+	videoHLSBuildMu       sync.Mutex
+	videoHLSBuildInFlight map[string]struct{}
 }
 
 // NewVideoService 创建视频服务
 func NewVideoService(videoDir string) VideoService {
-	return &videoService{
-		videoDir: videoDir,
+	return NewVideoServiceWithPlayback(videoDir, "", "", "")
+}
+
+// NewVideoServiceWithPlayback 创建支持 HLS 播放信息的视频服务。
+func NewVideoServiceWithPlayback(videoDir, videoHLSDir, ffmpegBinary, ffprobeBinary string) VideoService {
+	if strings.TrimSpace(videoHLSDir) == "" {
+		videoHLSDir = deriveVideoHLSDir(videoDir)
 	}
+	return &videoService{
+		videoDir:              videoDir,
+		videoHLSDir:           videoHLSDir,
+		ffmpegBinary:          ffmpegBinary,
+		ffprobeBinary:         ffprobeBinary,
+		videoHLSBuildInFlight: make(map[string]struct{}),
+	}
+}
+
+func deriveVideoHLSDir(videoDir string) string {
+	clean := filepath.Clean(strings.TrimSpace(videoDir))
+	if clean == "." || clean == "" {
+		return filepath.Clean("./video_hls")
+	}
+	return clean + "_hls"
 }
 
 // GetVideoList 获取视频列表
@@ -74,19 +101,12 @@ func (s *videoService) GetVideoList(ctx context.Context) ([]*model.VideoFile, er
 
 // GetVideoStreamURL 获取视频流URL
 func (s *videoService) GetVideoStreamURL(ctx context.Context, videoPath string, baseURL string) (string, error) {
-	// 验证路径安全性（防止路径遍历攻击）
-	cleanPath := filepath.Clean(videoPath)
-	if strings.Contains(cleanPath, "..") {
-		return "", fmt.Errorf("非法的视频路径")
-	}
-
-	// 检查文件是否存在
-	fullPath := filepath.Join(s.videoDir, cleanPath)
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("视频文件不存在: %s", videoPath)
+	cleanPath, _, _, err := s.resolveVideoFile(videoPath)
+	if err != nil {
+		return "", err
 	}
 
 	// 生成流媒体URL（baseURL 已包含协议）
-	streamURL := fmt.Sprintf("%s/video/%s", baseURL, videoPath)
+	streamURL := fmt.Sprintf("%s/video/%s", strings.TrimRight(baseURL, "/"), filepath.ToSlash(cleanPath))
 	return streamURL, nil
 }

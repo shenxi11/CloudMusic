@@ -41,12 +41,13 @@ func main() {
 		}
 	}
 
-	videoSvc := videoService.NewVideoService(cfg.Server.VideoDir)
+	videoSvc := videoService.NewVideoServiceWithPlayback(cfg.Server.VideoDir, cfg.Server.VideoHLSDir, cfg.Server.FFmpegBinary, cfg.Server.FFprobeBinary)
 	videoH := videoHandler.NewVideoHandler(videoSvc, baseURL)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/videos", videoH.GetVideoList)
 	mux.HandleFunc("/video/stream", videoH.GetVideoStream)
+	mux.HandleFunc("/video/playback-info", videoH.GetVideoPlaybackInfo)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]interface{}{
 			"service": "video-service",

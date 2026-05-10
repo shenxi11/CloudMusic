@@ -217,6 +217,7 @@ services:
     volumes:
       - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
       - ${HOST_VIDEO_DIR:-./.data/video}:/data/video:ro
+      - ${HOST_VIDEO_HLS_DIR:-./.data/video_hls}:/data/video_hls
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       VIDEO_SERVICE_HOST: 0.0.0.0
@@ -276,6 +277,7 @@ services:
       - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads:ro
       - ${HOST_VIDEO_DIR:-./.data/video}:/data/video:ro
       - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls:ro
+      - ${HOST_VIDEO_HLS_DIR:-./.data/video_hls}:/data/video_hls:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
       interval: 10s

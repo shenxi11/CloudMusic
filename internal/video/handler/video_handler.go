@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"music-platform/internal/video/model"
 	"music-platform/internal/video/service"
@@ -72,4 +73,37 @@ func (h *VideoHandler) GetVideoStream(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// GetVideoPlaybackInfo 返回直链、HLS 与多清晰度播放信息。
+func (h *VideoHandler) GetVideoPlaybackInfo(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	videoPath := strings.TrimSpace(r.URL.Query().Get("path"))
+	if r.Method == http.MethodPost {
+		var req model.VideoPlaybackInfoRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("[ERROR] 视频播放信息请求解析失败: %v", err)
+			response.BadRequest(w, "请求参数错误")
+			return
+		}
+		videoPath = strings.TrimSpace(req.Path)
+	} else if r.Method != http.MethodGet {
+		response.Error(w, http.StatusMethodNotAllowed, "仅支持GET或POST请求")
+		return
+	}
+
+	log.Printf("[INFO] 视频播放信息请求: path=%s", videoPath)
+	info, err := h.videoService.GetVideoPlaybackInfo(r.Context(), videoPath, h.baseURL)
+	if err != nil {
+		log.Printf("[ERROR] 获取视频播放信息失败: %v", err)
+		response.BadRequest(w, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(info)
 }
