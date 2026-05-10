@@ -218,7 +218,7 @@ func (s *videoService) generateVariant(ctx context.Context, absPath, hlsDir stri
 	if width <= 0 {
 		width = -2
 	}
-	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease", width, profile.Height)
+	scale := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2", width, profile.Height)
 	args := []string{"-hide_banner", "-loglevel", "error", "-y", "-i", absPath, "-map", "0:v:0", "-map", "0:a:0?", "-vf", scale, "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-crf", "23", "-b:v", profile.VideoBitrate, "-maxrate", profile.VideoBitrate, "-bufsize", bitrateBuffer(profile.VideoBitrate), "-force_key_frames", fmt.Sprintf("expr:gte(t,n_forced*%d)", videoHLSSegmentSeconds), "-c:a", "aac", "-b:a", profile.AudioBitrate, "-ac", "2", "-ar", "44100", "-f", "hls", "-hls_time", strconv.Itoa(videoHLSSegmentSeconds), "-hls_playlist_type", "vod", "-hls_list_size", "0", "-hls_flags", "independent_segments+temp_file", "-hls_segment_type", "fmp4", "-hls_fmp4_init_filename", "init.mp4", "-hls_segment_filename", segmentPattern, playlistPath}
 	output, err := exec.CommandContext(ctx, s.ffmpegPath(), args...).CombinedOutput()
 	if err != nil {
