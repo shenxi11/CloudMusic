@@ -37,6 +37,7 @@ type MusicResponse struct {
 // StreamRequest 流媒体请求
 type StreamRequest struct {
 	Filename string `json:"filename"`
+	Quality  string `json:"quality,omitempty"`
 }
 
 // ArtistMusicRequest 按歌手查询音乐请求

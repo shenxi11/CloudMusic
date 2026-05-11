@@ -2418,6 +2418,10 @@ components:
       properties:
         filename:
           type: string
+        quality:
+          type: string
+          description: Optional playback quality. Use lossless/original/source/flac to force original file; empty/default prefers transcoded MP3 cache when available.
+          enum: [standard, lossless, original, source, flac]
 
     ArtistRequest:
       type: object

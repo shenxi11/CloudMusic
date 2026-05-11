@@ -113,7 +113,10 @@ func main() {
 	// 7. 初始化服务层
 	userSvc := userService.NewUserService(userRepository, userMusicRepository, "", cfg.Server.UploadDir)
 	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
-	musicSvc := musicService.NewMusicService(musicRepository, jamendoSvc)
+	musicSvc := musicService.NewMusicServiceWithPlaybackConfig(musicRepository, jamendoSvc, musicService.PlaybackConfig{
+		TranscodedAudioDir:     cfg.Server.TranscodedAudioDir,
+		TranscodedAudioBaseURL: config.ResolveTranscodedAudioPublicBaseURL(cfg.Server),
+	})
 	videoSvc := videoService.NewVideoService(cfg.Server.VideoDir)
 	artistSvc := artistService.NewArtistService(artistRepository)
 

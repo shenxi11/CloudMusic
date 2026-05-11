@@ -45,10 +45,11 @@ WORKDIR /app
 
 COPY --from=builder /out/ /app/
 COPY scripts/docker/wait_for.sh /app/scripts/docker/wait_for.sh
+COPY scripts/transcode_audio_cache.sh /app/scripts/transcode_audio_cache.sh
 COPY configs/config.docker.yaml /app/configs/config.yaml
 COPY migrations/sql /app/migrations/sql
 
-RUN chmod +x /app/music_server /app/auth_server /app/catalog_server /app/profile_server /app/media_server /app/video_server /app/event_worker /app/migrator /app/media_indexer /app/scripts/docker/wait_for.sh \
-    && mkdir -p /data/uploads /data/video /data/uploads_hls /app/migrations/sql
+RUN chmod +x /app/music_server /app/auth_server /app/catalog_server /app/profile_server /app/media_server /app/video_server /app/event_worker /app/migrator /app/media_indexer /app/scripts/docker/wait_for.sh /app/scripts/transcode_audio_cache.sh \
+    && mkdir -p /data/uploads /data/transcoded_audio /data/video /data/uploads_hls /app/migrations/sql
 
 CMD ["/app/music_server"]

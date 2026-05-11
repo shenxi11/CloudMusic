@@ -27,6 +27,8 @@ Commands:
   config        Render and print compose config
   migrate       Run migrator once
   sync-media    Scan media dirs and upsert DB metadata (passes args to media_indexer)
+  transcode-audio [args]
+                Build MP3 playback cache from lossless/high-bitrate uploads
   build [--refresh-base]
                 Build app image only
   help          Show this help
@@ -89,6 +91,7 @@ ensure_data_dirs() {
     cd "$ROOT_DIR"
     mkdir -p \
       "${HOST_UPLOAD_DIR:-./.data/uploads}" \
+      "${HOST_TRANSCODED_AUDIO_DIR:-./.data/transcoded_audio}" \
       "${HOST_VIDEO_DIR:-./.data/video}" \
       "${HOST_HLS_DIR:-./.data/uploads_hls}"
   )
@@ -296,6 +299,12 @@ case "$cmd" in
     else
       compose run --rm music-server /app/media_indexer "${args[@]}"
     fi
+    ;;
+  transcode-audio)
+    ensure_env_file
+    render_config
+    ensure_data_dirs
+    compose run --rm music-server /app/scripts/transcode_audio_cache.sh "${args[@]}"
     ;;
   build)
     ensure_env_file

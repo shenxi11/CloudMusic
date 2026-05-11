@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"music-platform/internal/music/model"
+	"music-platform/internal/music/service"
 )
 
 type fakeMusicService struct{}
@@ -21,6 +22,10 @@ func (f *fakeMusicService) GetMusicByPath(ctx context.Context, path string, base
 }
 
 func (f *fakeMusicService) GetMusicByFilename(ctx context.Context, filename string, baseURL string) (*model.MusicResponse, error) {
+	return nil, nil
+}
+
+func (f *fakeMusicService) GetMusicByFilenameWithOptions(ctx context.Context, filename string, baseURL string, options service.PlaybackOptions) (*model.MusicResponse, error) {
 	return nil, nil
 }
 

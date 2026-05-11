@@ -10,18 +10,20 @@ import (
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host               string `yaml:"host"`
-	Port               int    `yaml:"port"`
-	PublicHost         string `yaml:"public_host"`
-	PublicPort         int    `yaml:"public_port"`
-	PublicBaseURL      string `yaml:"public_base_url"`
-	MediaPublicBaseURL string `yaml:"media_public_base_url"`
-	UploadDir          string `yaml:"upload_dir"`
-	StaticDir          string `yaml:"static_dir"`
-	VideoDir           string `yaml:"video_dir"`
-	VideoHLSDir        string `yaml:"video_hls_dir"`
-	FFmpegBinary       string `yaml:"ffmpeg_binary"`
-	FFprobeBinary      string `yaml:"ffprobe_binary"`
+	Host                         string `yaml:"host"`
+	Port                         int    `yaml:"port"`
+	PublicHost                   string `yaml:"public_host"`
+	PublicPort                   int    `yaml:"public_port"`
+	PublicBaseURL                string `yaml:"public_base_url"`
+	MediaPublicBaseURL           string `yaml:"media_public_base_url"`
+	TranscodedAudioPublicBaseURL string `yaml:"transcoded_audio_public_base_url"`
+	UploadDir                    string `yaml:"upload_dir"`
+	TranscodedAudioDir           string `yaml:"transcoded_audio_dir"`
+	StaticDir                    string `yaml:"static_dir"`
+	VideoDir                     string `yaml:"video_dir"`
+	VideoHLSDir                  string `yaml:"video_hls_dir"`
+	FFmpegBinary                 string `yaml:"ffmpeg_binary"`
+	FFprobeBinary                string `yaml:"ffprobe_binary"`
 	// TLS/HTTPS 配置
 	EnableTLS bool   `yaml:"enable_tls"` // 是否启用 HTTPS
 	CertFile  string `yaml:"cert_file"`  // TLS 证书文件路径
@@ -177,6 +179,15 @@ func ResolveMediaPublicBaseURL(server ServerConfig) string {
 		return strings.TrimSuffix(mediaBaseURL, "/")
 	}
 	return ResolvePublicBaseURL(server)
+}
+
+// ResolveTranscodedAudioPublicBaseURL returns the public base URL for cached audio.
+func ResolveTranscodedAudioPublicBaseURL(server ServerConfig) string {
+	transcodedBaseURL := strings.TrimSpace(server.TranscodedAudioPublicBaseURL)
+	if transcodedBaseURL != "" {
+		return strings.TrimSuffix(transcodedBaseURL, "/")
+	}
+	return ResolveMediaPublicBaseURL(server)
 }
 
 // ResolveJamendoConfig applies defaults and environment overrides.

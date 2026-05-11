@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,20 +20,41 @@ type MusicService interface {
 	GetAllMusic(ctx context.Context, baseURL string) ([]*model.FileListItem, error)
 	GetMusicByPath(ctx context.Context, path string, baseURL string) (*model.MusicResponse, error)
 	GetMusicByFilename(ctx context.Context, filename string, baseURL string) (*model.MusicResponse, error)
+	GetMusicByFilenameWithOptions(ctx context.Context, filename string, baseURL string, options PlaybackOptions) (*model.MusicResponse, error)
 	GetMusicByArtist(ctx context.Context, artist string, baseURL string) ([]*model.FileListItem, error)
 	SearchMusic(ctx context.Context, keyword string, baseURL string) ([]*model.FileListItem, error)
 }
 
+// PlaybackConfig controls optional optimized playback resources.
+type PlaybackConfig struct {
+	TranscodedAudioDir     string
+	TranscodedAudioBaseURL string
+}
+
+// PlaybackOptions controls per-request playback selection.
+type PlaybackOptions struct {
+	Quality string
+}
+
 type musicService struct {
-	musicRepo      repository.MusicRepository
-	jamendoService external.JamendoService
+	musicRepo              repository.MusicRepository
+	jamendoService         external.JamendoService
+	transcodedAudioDir     string
+	transcodedAudioBaseURL string
 }
 
 // NewMusicService 创建音乐服务
 func NewMusicService(musicRepo repository.MusicRepository, jamendoService external.JamendoService) MusicService {
+	return NewMusicServiceWithPlaybackConfig(musicRepo, jamendoService, PlaybackConfig{})
+}
+
+// NewMusicServiceWithPlaybackConfig 创建带播放优化配置的音乐服务。
+func NewMusicServiceWithPlaybackConfig(musicRepo repository.MusicRepository, jamendoService external.JamendoService, playback PlaybackConfig) MusicService {
 	return &musicService{
-		musicRepo:      musicRepo,
-		jamendoService: jamendoService,
+		musicRepo:              musicRepo,
+		jamendoService:         jamendoService,
+		transcodedAudioDir:     strings.TrimSpace(playback.TranscodedAudioDir),
+		transcodedAudioBaseURL: strings.TrimRight(strings.TrimSpace(playback.TranscodedAudioBaseURL), "/"),
 	}
 }
 
@@ -79,23 +101,28 @@ func (s *musicService) GetMusicByPath(ctx context.Context, path string, baseURL 
 		return nil, err
 	}
 
-	return s.buildMusicResponse(mf, baseURL), nil
+	return s.buildMusicResponse(mf, baseURL, PlaybackOptions{}), nil
 }
 
 // GetMusicByFilename 根据文件名获取音乐详情
 func (s *musicService) GetMusicByFilename(ctx context.Context, filename string, baseURL string) (*model.MusicResponse, error) {
+	return s.GetMusicByFilenameWithOptions(ctx, filename, baseURL, PlaybackOptions{})
+}
+
+// GetMusicByFilenameWithOptions 根据文件名和播放参数获取音乐详情。
+func (s *musicService) GetMusicByFilenameWithOptions(ctx context.Context, filename string, baseURL string, options PlaybackOptions) (*model.MusicResponse, error) {
 	mf, err := s.musicRepo.FindByPathLike(ctx, filename)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildMusicResponse(mf, baseURL), nil
+	return s.buildMusicResponse(mf, baseURL, options), nil
 }
 
 // buildMusicResponse 构建音乐响应
-func (s *musicService) buildMusicResponse(mf *model.MusicFile, baseURL string) *model.MusicResponse {
+func (s *musicService) buildMusicResponse(mf *model.MusicFile, baseURL string, options PlaybackOptions) *model.MusicResponse {
 	response := &model.MusicResponse{
-		StreamURL: fmt.Sprintf("%s/uploads/%s", baseURL, mf.Path),
+		StreamURL: s.resolveStreamURL(mf, baseURL, options),
 		Duration:  &mf.DurationSec,
 		Title:     mf.Title,
 		Artist:    mf.Artist,
@@ -116,6 +143,73 @@ func (s *musicService) buildMusicResponse(mf *model.MusicFile, baseURL string) *
 	}
 
 	return response
+}
+
+func (s *musicService) resolveStreamURL(mf *model.MusicFile, baseURL string, options PlaybackOptions) string {
+	if rel, ok := s.resolveTranscodedAudioRelPath(mf, options); ok {
+		transcodedBaseURL := s.transcodedAudioBaseURL
+		if transcodedBaseURL == "" {
+			transcodedBaseURL = strings.TrimRight(baseURL, "/")
+		}
+		return fmt.Sprintf("%s/audio-cache/%s", transcodedBaseURL, rel)
+	}
+
+	return fmt.Sprintf("%s/uploads/%s", baseURL, mf.Path)
+}
+
+func (s *musicService) resolveTranscodedAudioRelPath(mf *model.MusicFile, options PlaybackOptions) (string, bool) {
+	if s.transcodedAudioDir == "" || isLosslessQuality(options.Quality) {
+		return "", false
+	}
+
+	rel := cleanMediaRelPath(mf.Path)
+	if rel == "" || !needsTranscodedAudio(rel) {
+		return "", false
+	}
+
+	transcodedRel := replaceExtWithMP3(rel)
+	transcodedPath := filepath.Join(s.transcodedAudioDir, filepath.FromSlash(transcodedRel))
+	info, err := os.Stat(transcodedPath)
+	if err != nil || info.IsDir() {
+		return "", false
+	}
+
+	return transcodedRel, true
+}
+
+func isLosslessQuality(quality string) bool {
+	switch strings.ToLower(strings.TrimSpace(quality)) {
+	case "lossless", "original", "source", "flac":
+		return true
+	default:
+		return false
+	}
+}
+
+func needsTranscodedAudio(rel string) bool {
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".flac", ".dsf", ".ape", ".wav":
+		return true
+	default:
+		return false
+	}
+}
+
+func replaceExtWithMP3(rel string) string {
+	ext := filepath.Ext(rel)
+	if ext == "" {
+		return rel + ".mp3"
+	}
+	return strings.TrimSuffix(rel, ext) + ".mp3"
+}
+
+func cleanMediaRelPath(path string) string {
+	rel := filepath.ToSlash(strings.TrimSpace(path))
+	rel = strings.TrimLeft(rel, "/")
+	if rel == "" || strings.HasPrefix(rel, "../") || strings.Contains(rel, "/../") {
+		return ""
+	}
+	return rel
 }
 
 // GetMusicByArtist 根据歌手获取音乐列表

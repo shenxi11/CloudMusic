@@ -79,6 +79,7 @@ services:
     volumes:
       - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
       - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads
+      - ${HOST_TRANSCODED_AUDIO_DIR:-./.data/transcoded_audio}:/data/transcoded_audio
       - ${HOST_VIDEO_DIR:-./.data/video}:/data/video
       - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls
     environment:
@@ -135,6 +136,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./configs/config.docker.generated.yaml:/app/configs/config.yaml:ro
+      - ${HOST_TRANSCODED_AUDIO_DIR:-./.data/transcoded_audio}:/data/transcoded_audio:ro
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       CATALOG_SERVICE_HOST: 0.0.0.0
@@ -275,6 +277,7 @@ services:
     volumes:
       - ./deploy/nginx/nginx.docker.conf:/etc/nginx/nginx.conf:ro
       - ${HOST_UPLOAD_DIR:-./.data/uploads}:/data/uploads:ro
+      - ${HOST_TRANSCODED_AUDIO_DIR:-./.data/transcoded_audio}:/data/transcoded_audio:ro
       - ${HOST_VIDEO_DIR:-./.data/video}:/data/video:ro
       - ${HOST_HLS_DIR:-./.data/uploads_hls}:/data/uploads_hls:ro
       - ${HOST_VIDEO_HLS_DIR:-./.data/video_hls}:/data/video_hls:ro

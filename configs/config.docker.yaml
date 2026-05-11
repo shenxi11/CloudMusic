@@ -6,8 +6,10 @@ server:
   public_port: 8080
   public_base_url: "http://localhost:8080"
   media_public_base_url: ""
+  transcoded_audio_public_base_url: ""
   static_dir: ""
   upload_dir: "/data/uploads"
+  transcoded_audio_dir: "/data/transcoded_audio"
   video_dir: "/data/video"
   video_hls_dir: "/data/video_hls"
   ffmpeg_binary: "ffmpeg"

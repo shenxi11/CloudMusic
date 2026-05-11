@@ -103,7 +103,9 @@ func (h *MusicHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	musicResp, err := h.musicService.GetMusicByFilename(r.Context(), filename, h.baseURL)
+	musicResp, err := h.musicService.GetMusicByFilenameWithOptions(r.Context(), filename, h.baseURL, service.PlaybackOptions{
+		Quality: req.Quality,
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			response.NotFound(w, "音乐文件不存在")

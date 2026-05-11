@@ -39,7 +39,10 @@ func main() {
 	musicRepository := musicRepo.NewMusicRepository(db)
 	artistRepository := artistRepo.NewArtistRepository(db)
 	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
-	musicSvc := musicService.NewMusicService(musicRepository, jamendoSvc)
+	musicSvc := musicService.NewMusicServiceWithPlaybackConfig(musicRepository, jamendoSvc, musicService.PlaybackConfig{
+		TranscodedAudioDir:     cfg.Server.TranscodedAudioDir,
+		TranscodedAudioBaseURL: config.ResolveTranscodedAudioPublicBaseURL(cfg.Server),
+	})
 	artistSvc := artistService.NewArtistService(artistRepository)
 	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, mediaBaseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
