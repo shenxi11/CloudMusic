@@ -70,15 +70,17 @@ func (h *ConnectHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	baseURL := h.resolveBaseURL(r)
+	mediaBaseURL := config.ResolveMediaPublicBaseURL(h.cfg.Server)
 	now := time.Now()
 
 	response.Success(w, map[string]any{
-		"service":         "cloudmusic-server",
-		"api_version":     clientAPIVersion,
-		"ready":           dbReady && redisReady,
-		"timestamp":       now.Unix(),
-		"server_time":     now.Format(time.RFC3339),
-		"public_base_url": baseURL,
+		"service":               "cloudmusic-server",
+		"api_version":           clientAPIVersion,
+		"ready":                 dbReady && redisReady,
+		"timestamp":             now.Unix(),
+		"server_time":           now.Format(time.RFC3339),
+		"public_base_url":       baseURL,
+		"media_public_base_url": mediaBaseURL,
 		"checks": map[string]bool{
 			"database": dbReady,
 			"redis":    redisReady,

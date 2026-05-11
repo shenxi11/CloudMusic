@@ -5,6 +5,7 @@ server:
   public_host: "localhost"
   public_port: 8080
   public_base_url: "http://localhost:8080"
+  media_public_base_url: ""
   static_dir: ""
   upload_dir: "/data/uploads"
   video_dir: "/data/video"

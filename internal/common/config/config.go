@@ -10,17 +10,18 @@ import (
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host          string `yaml:"host"`
-	Port          int    `yaml:"port"`
-	PublicHost    string `yaml:"public_host"`
-	PublicPort    int    `yaml:"public_port"`
-	PublicBaseURL string `yaml:"public_base_url"`
-	UploadDir     string `yaml:"upload_dir"`
-	StaticDir     string `yaml:"static_dir"`
-	VideoDir      string `yaml:"video_dir"`
-	VideoHLSDir   string `yaml:"video_hls_dir"`
-	FFmpegBinary  string `yaml:"ffmpeg_binary"`
-	FFprobeBinary string `yaml:"ffprobe_binary"`
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	PublicHost         string `yaml:"public_host"`
+	PublicPort         int    `yaml:"public_port"`
+	PublicBaseURL      string `yaml:"public_base_url"`
+	MediaPublicBaseURL string `yaml:"media_public_base_url"`
+	UploadDir          string `yaml:"upload_dir"`
+	StaticDir          string `yaml:"static_dir"`
+	VideoDir           string `yaml:"video_dir"`
+	VideoHLSDir        string `yaml:"video_hls_dir"`
+	FFmpegBinary       string `yaml:"ffmpeg_binary"`
+	FFprobeBinary      string `yaml:"ffprobe_binary"`
 	// TLS/HTTPS 配置
 	EnableTLS bool   `yaml:"enable_tls"` // 是否启用 HTTPS
 	CertFile  string `yaml:"cert_file"`  // TLS 证书文件路径
@@ -142,6 +143,40 @@ func MustLoad(configPath string) *Config {
 		panic(err)
 	}
 	return cfg
+}
+
+// ResolvePublicBaseURL returns the public API base URL without a trailing slash.
+func ResolvePublicBaseURL(server ServerConfig) string {
+	baseURL := strings.TrimSpace(server.PublicBaseURL)
+	if baseURL != "" {
+		return strings.TrimSuffix(baseURL, "/")
+	}
+
+	protocol := "http"
+	if server.EnableTLS {
+		protocol = "https"
+	}
+	publicHost := strings.TrimSpace(server.PublicHost)
+	if publicHost == "" {
+		return "http://localhost:8080"
+	}
+	publicPort := server.PublicPort
+	if publicPort <= 0 {
+		publicPort = server.Port
+	}
+	if publicPort <= 0 {
+		return fmt.Sprintf("%s://%s", protocol, publicHost)
+	}
+	return fmt.Sprintf("%s://%s:%d", protocol, publicHost, publicPort)
+}
+
+// ResolveMediaPublicBaseURL returns the CDN/static media base URL without a trailing slash.
+func ResolveMediaPublicBaseURL(server ServerConfig) string {
+	mediaBaseURL := strings.TrimSpace(server.MediaPublicBaseURL)
+	if mediaBaseURL != "" {
+		return strings.TrimSuffix(mediaBaseURL, "/")
+	}
+	return ResolvePublicBaseURL(server)
 }
 
 // ResolveJamendoConfig applies defaults and environment overrides.

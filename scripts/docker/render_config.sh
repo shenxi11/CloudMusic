@@ -19,6 +19,7 @@ SERVER_PUBLIC_HOST="${SERVER_PUBLIC_HOST:-localhost}"
 PUBLIC_GATEWAY_PORT="${GATEWAY_PORT:-8080}"
 SERVER_PUBLIC_PORT="${SERVER_PUBLIC_PORT:-$PUBLIC_GATEWAY_PORT}"
 SERVER_PUBLIC_BASE_URL="${SERVER_PUBLIC_BASE_URL:-http://localhost:$SERVER_PUBLIC_PORT}"
+SERVER_MEDIA_PUBLIC_BASE_URL="${SERVER_MEDIA_PUBLIC_BASE_URL:-$SERVER_PUBLIC_BASE_URL}"
 
 MYSQL_DATABASE="${MYSQL_DATABASE:-music_users}"
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-change_me_please}"
@@ -48,6 +49,7 @@ server:
   public_host: "$(yaml_escape "$SERVER_PUBLIC_HOST")"
   public_port: ${SERVER_PUBLIC_PORT}
   public_base_url: "$(yaml_escape "$SERVER_PUBLIC_BASE_URL")"
+  media_public_base_url: "$(yaml_escape "$SERVER_MEDIA_PUBLIC_BASE_URL")"
   static_dir: ""
   upload_dir: "/data/uploads"
   video_dir: "/data/video"

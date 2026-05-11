@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	artistHandler "music-platform/internal/artist/handler"
 	artistRepo "music-platform/internal/artist/repository"
@@ -34,22 +33,7 @@ func main() {
 	}
 	defer database.Close()
 
-	protocol := "http"
-	if cfg.Server.EnableTLS {
-		protocol = "https"
-	}
-	publicPort := cfg.Server.PublicPort
-	if publicPort == 0 {
-		publicPort = cfg.Server.Port
-	}
-	baseURL := strings.TrimSuffix(cfg.Server.PublicBaseURL, "/")
-	if baseURL == "" {
-		if cfg.Server.PublicHost == "" {
-			baseURL = "http://localhost:8080"
-		} else {
-			baseURL = fmt.Sprintf("%s://%s:%d", protocol, cfg.Server.PublicHost, publicPort)
-		}
-	}
+	mediaBaseURL := config.ResolveMediaPublicBaseURL(cfg.Server)
 
 	db := database.GetDB()
 	musicRepository := musicRepo.NewMusicRepository(db)
@@ -57,7 +41,7 @@ func main() {
 	jamendoSvc := musicExternal.NewJamendoClient(config.ResolveJamendoConfig(cfg))
 	musicSvc := musicService.NewMusicService(musicRepository, jamendoSvc)
 	artistSvc := artistService.NewArtistService(artistRepository)
-	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, baseURL)
+	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, mediaBaseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
 	artistH := artistHandler.NewArtistHandler(artistSvc)
 

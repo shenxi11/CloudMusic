@@ -118,26 +118,9 @@ func main() {
 	artistSvc := artistService.NewArtistService(artistRepository)
 
 	// 8. 初始化处理器层
-	// 根据 TLS 配置决定使用 http 还是 https
-	protocol := "http"
-	if cfg.Server.EnableTLS {
-		protocol = "https"
-	}
-
-	publicPort := cfg.Server.PublicPort
-	if publicPort == 0 {
-		publicPort = cfg.Server.Port
-	}
-
-	baseURL := strings.TrimSuffix(cfg.Server.PublicBaseURL, "/")
-	if baseURL == "" {
-		if cfg.Server.PublicHost == "" {
-			baseURL = "http://localhost:8080" // 备用默认地址
-		} else {
-			baseURL = fmt.Sprintf("%s://%s:%d", protocol, cfg.Server.PublicHost, publicPort)
-		}
-	}
-	userSvc = userService.NewUserService(userRepository, userMusicRepository, baseURL, cfg.Server.UploadDir)
+	baseURL := config.ResolvePublicBaseURL(cfg.Server)
+	mediaBaseURL := config.ResolveMediaPublicBaseURL(cfg.Server)
+	userSvc = userService.NewUserService(userRepository, userMusicRepository, mediaBaseURL, cfg.Server.UploadDir)
 
 	mediaSchema := strings.TrimSpace(cfg.Schemas.Media)
 	if mediaSchema == "" {
@@ -145,13 +128,13 @@ func main() {
 	}
 
 	leaderboardStore := chartStore.NewRedisStore(cache.GetClient())
-	chartSvc := chartService.NewChartService(chartRepository, leaderboardStore, baseURL, jamendoSvc)
-	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, baseURL, nil, nil, chartSvc, jamendoSvc)
-	playlistSvc := playlistService.NewPlaylistService(playlistRepository, baseURL, nil, nil, jamendoSvc)
-	recommendSvc := recommendService.NewRecommendService(recommendRepository, baseURL)
-	commentSvc := commentService.NewCommentService(commentRepository, userRepository, baseURL, nil, nil)
+	chartSvc := chartService.NewChartService(chartRepository, leaderboardStore, mediaBaseURL, jamendoSvc)
+	usermusicSvc := usermusicService.NewUserMusicService(usermusicRepository, mediaBaseURL, nil, nil, chartSvc, jamendoSvc)
+	playlistSvc := playlistService.NewPlaylistService(playlistRepository, mediaBaseURL, nil, nil, jamendoSvc)
+	recommendSvc := recommendService.NewRecommendService(recommendRepository, mediaBaseURL)
+	commentSvc := commentService.NewCommentService(commentRepository, userRepository, mediaBaseURL, nil, nil)
 	userH := userHandler.NewUserHandler(userSvc)
-	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, baseURL)
+	musicH := musicHandler.NewMusicHandler(musicSvc, jamendoSvc, mediaBaseURL)
 	jamendoH := musicHandler.NewJamendoHandler(jamendoSvc)
 	mediaH := handler.NewMediaHandler(cfg.Server.UploadDir, db, mediaSchema, catalogSchema, jamendoSvc)
 	if err := mediaH.EnsureTables(); err != nil {
@@ -372,12 +355,15 @@ func main() {
 		IdleTimeout:  10 * time.Minute, // 允许长连接
 	}
 
-	// 使用之前定义的 protocol 和 baseURL
+	listenProtocol := "http"
+	if cfg.Server.EnableTLS {
+		listenProtocol = "https"
+	}
 	displayURL := baseURL
 
 	logger.Info("========================================")
 	logger.Info("音乐平台服务器启动成功")
-	logger.Info("监听地址: %s://%s", protocol, addr)
+	logger.Info("监听地址: %s://%s", listenProtocol, addr)
 	logger.Info("公共访问: %s", displayURL)
 	logger.Info("========================================")
 	logger.Info("可用路由:")

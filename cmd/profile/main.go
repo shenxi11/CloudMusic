@@ -55,22 +55,7 @@ func main() {
 		defer cache.Close()
 	}
 
-	protocol := "http"
-	if cfg.Server.EnableTLS {
-		protocol = "https"
-	}
-	publicPort := cfg.Server.PublicPort
-	if publicPort == 0 {
-		publicPort = cfg.Server.Port
-	}
-	baseURL := strings.TrimSuffix(cfg.Server.PublicBaseURL, "/")
-	if baseURL == "" {
-		if cfg.Server.PublicHost == "" {
-			baseURL = "http://localhost:8080"
-		} else {
-			baseURL = fmt.Sprintf("%s://%s:%d", protocol, cfg.Server.PublicHost, publicPort)
-		}
-	}
+	baseURL := config.ResolveMediaPublicBaseURL(cfg.Server)
 
 	db := database.GetDB()
 	profileSchema := strings.TrimSpace(cfg.Schemas.Profile)

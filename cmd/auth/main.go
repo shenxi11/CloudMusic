@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 
 	"music-platform/internal/common/cache"
 	"music-platform/internal/common/config"
@@ -44,22 +43,7 @@ func main() {
 	db := database.GetDB()
 	userRepository := userRepo.NewUserRepository(db)
 	userMusicRepository := userRepo.NewUserMusicRepository(db)
-	baseURL := strings.TrimSuffix(cfg.Server.PublicBaseURL, "/")
-	if baseURL == "" {
-		protocol := "http"
-		if cfg.Server.EnableTLS {
-			protocol = "https"
-		}
-		publicHost := strings.TrimSpace(cfg.Server.PublicHost)
-		publicPort := cfg.Server.PublicPort
-		if publicPort == 0 {
-			publicPort = cfg.Server.Port
-		}
-		if publicHost == "" {
-			publicHost = "localhost"
-		}
-		baseURL = fmt.Sprintf("%s://%s:%d", protocol, publicHost, publicPort)
-	}
+	baseURL := config.ResolveMediaPublicBaseURL(cfg.Server)
 	userSvc := userService.NewUserService(userRepository, userMusicRepository, baseURL, cfg.Server.UploadDir)
 	userH := userHandler.NewUserHandler(userSvc)
 
