@@ -5,7 +5,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  /app/scripts/transcode_audio_cache.sh [--input-dir /data/uploads] [--output-dir /data/transcoded_audio] [--bitrate 320k] [--force]
+  /app/scripts/transcode_audio_cache.sh [--input-dir /data/uploads] [--output-dir /data/transcoded_audio] [--bitrate 320k] [--timeout-seconds 900] [--force]
 
 Purpose:
   Generate MP3 playback cache for large lossless/high-bitrate local audio.
@@ -16,6 +16,7 @@ USAGE
 input_dir="/data/uploads"
 output_dir="/data/transcoded_audio"
 bitrate="${TRANSCODE_AUDIO_BITRATE:-320k}"
+timeout_seconds="${TRANSCODE_AUDIO_TIMEOUT_SECONDS:-900}"
 force=0
 
 while [[ $# -gt 0 ]]; do
@@ -30,6 +31,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --bitrate)
       bitrate="${2:-}"
+      shift 2
+      ;;
+    --timeout-seconds)
+      timeout_seconds="${2:-}"
       shift 2
       ;;
     --force)
@@ -48,13 +53,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$input_dir" || -z "$output_dir" || -z "$bitrate" ]]; then
-  echo "Error: input-dir, output-dir and bitrate cannot be empty." >&2
+if [[ -z "$input_dir" || -z "$output_dir" || -z "$bitrate" || -z "$timeout_seconds" ]]; then
+  echo "Error: input-dir, output-dir, bitrate and timeout-seconds cannot be empty." >&2
   exit 2
 fi
 if [[ ! -d "$input_dir" ]]; then
   echo "Error: input directory does not exist: $input_dir" >&2
   exit 1
+fi
+
+if ! [[ "$timeout_seconds" =~ ^[0-9]+$ ]] || [[ "$timeout_seconds" -le 0 ]]; then
+  echo "Error: timeout-seconds must be a positive integer." >&2
+  exit 2
 fi
 
 mkdir -p "$output_dir"
@@ -77,7 +87,7 @@ while IFS= read -r -d '' input; do
 
   mkdir -p "$(dirname "$output")"
   echo "Transcoding: $rel -> ${base}.mp3"
-  if ffmpeg -hide_banner -loglevel error -y -i "$input" -vn -map 0:a:0 -codec:a libmp3lame -b:a "$bitrate" "$output"; then
+  if timeout --kill-after=30s "$timeout_seconds" ffmpeg -nostdin -hide_banner -loglevel error -y -i "$input" -vn -map 0:a:0 -codec:a libmp3lame -b:a "$bitrate" "$output"; then
     created=$((created + 1))
   else
     failed=$((failed + 1))
@@ -86,7 +96,7 @@ while IFS= read -r -d '' input; do
   fi
 done < <(find "$input_dir" -type f \( -iname '*.flac' -o -iname '*.dsf' -o -iname '*.ape' -o -iname '*.wav' \) -print0 | sort -z)
 
-echo "Transcode audio cache finished: scanned=$scanned created=$created skipped=$skipped failed=$failed output_dir=$output_dir bitrate=$bitrate"
+echo "Transcode audio cache finished: scanned=$scanned created=$created skipped=$skipped failed=$failed output_dir=$output_dir bitrate=$bitrate timeout_seconds=$timeout_seconds"
 if [[ "$failed" -gt 0 ]]; then
   exit 1
 fi
