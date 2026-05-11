@@ -39,6 +39,8 @@ RUN set -eux; \
 ARG RUNTIME_BASE_IMAGE
 FROM ${RUNTIME_BASE_IMAGE} AS runtime
 
+HEALTHCHECK NONE
+
 WORKDIR /app
 
 COPY --from=builder /out/ /app/
